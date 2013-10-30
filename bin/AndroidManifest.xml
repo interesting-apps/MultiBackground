@@ -1,22 +1,51 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.multibackground"
+    package="com.apps.interestingapps.multibackground"
     android:versionCode="1"
     android:versionName="1.0" >
 
     <uses-sdk
-        android:minSdkVersion="4"
+        android:minSdkVersion="7"
         android:targetSdkVersion="15" />
 
+    <uses-feature
+        android:name="android.software.live_wallpaper"
+        android:required="true" />
+
+    <uses-permission android:name="android.permission.SET_WALLPAPER" >
+    </uses-permission>
+
+    <!-- TODO: Remove debugging when publishing the app -->
     <application
+        android:debuggable="true"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
         android:theme="@style/AppTheme" >
+        <service
+            android:name="MyWallpaperService"
+            android:enabled="true"
+            android:label="Multiple Background "
+            android:permission="android.permission.BIND_WALLPAPER" >
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" >
+                </action>
+            </intent-filter>
+
+            <meta-data
+                android:name="android.service.wallpaper"
+                android:resource="@xml/mywallpaper" >
+            </meta-data>
+        </service>
+        <service
+            android:name=".MyService"
+            android:enabled="true"
+            android:label="Wallpaper Service Example " />
+
         <activity
-            android:name=".MainActivity"
-            android:label="@string/title_activity_main" >
+            android:name=".SetWallpaperActivity"
+            android:label="@string/app_name"
+            android:theme="@android:style/Theme.Light.WallpaperSettings" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>

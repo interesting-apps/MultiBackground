@@ -1,0 +1,8 @@
+** Screen not changed --> threshold = 17 * (17 / 268) = 1.078358209
+
+action=ACTION_DOWN, x[0]=331.53067, eventTime=11120221, downTime=11120221
+action=ACTION_UP, x[0]=348.53067, eventTime=11120489, downTime=11120221
+
+** Screen changed --> Threshold = 361 * ( 361 / 156 ) = 835.391025641
+action=ACTION_DOWN, x[0]=311.53067, eventTime=11126501, downTime=11126501
+action=ACTION_UP,  x[0]=672.2889, y[0]=238.08913, eventTime=11126657, downTime=11126501
