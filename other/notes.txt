@@ -1,1 +1,41 @@
 Sample Image Path: /mnt/sdcard/DCIM/Camera/IMG_20131028_020416.jpg
+
+SetImagePosition:
+
+/**
+	 * Sets the current Image's position to the left of Plus Image view and sets
+	 * the previous image's position to be left of the current image. This
+	 * method assumes that all the images will be added to the left of the Plus
+	 * image, and that the first image will move further away from plus image
+	 * towards left as new images are added.
+	 *
+	 * @param currentImageView
+	 */
+	private void setImagePosition(ImageView currentImageView) {
+		if (currentImageView == null) {
+			return;
+		}
+
+		if (imageViewsList.size() != 0) {
+			/*
+			 * Make the previous image to be on the left of the current image.
+			 */
+			ImageView previousImageView = imageViewsList.get(imageViewsList
+					.size() - 1);
+			RelativeLayout.LayoutParams previousImageLayoutParams = new RelativeLayout.LayoutParams(
+					previousImageView.getLayoutParams());
+			previousImageLayoutParams.addRule(RelativeLayout.LEFT_OF,
+					currentImageView.getId());
+			previousImageView.setLayoutParams(previousImageLayoutParams);
+		}
+
+		/*
+		 * Add the current image to be on left of Plus image View
+		 */
+		RelativeLayout.LayoutParams currentImageLayoutParams = new RelativeLayout.LayoutParams(
+				LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+		currentImageLayoutParams.addRule(RelativeLayout.LEFT_OF, plusImageView
+				.getId());
+		currentImageView.setLayoutParams(currentImageLayoutParams);
+
+	}

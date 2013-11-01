@@ -15,8 +15,6 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
-import com.apps.interestingapps.multibackground.SetWallpaperActivity;
-
 /**
  * Class to handle database creation and updates
  */
@@ -26,6 +24,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 	private Context context;
 	private SQLiteDatabase database;
 	private static final String TAG = "DatabaseHelper";
+	private static final int TEMP_UINQUE_IMAGE_NUMBER = 21;
 
 	private String[] allColumns = { MultiBackgroundConstants.ID_COLUMN,
 			MultiBackgroundConstants.IMAGE_NUMBER_COLUMN,
@@ -71,8 +70,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		SQLiteDatabase tempDatabase = null;
 		if (!dbExist) {
 			try {
-				Log.i(TAG,
-						"Database file does not exists");
+				Log.i(TAG, "Database file does not exists");
 				tempDatabase = getReadableDatabase();
 				copyDataBase();
 				tempDatabase.close();
@@ -208,7 +206,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		List<MultiBackgroundImage> allImages = new ArrayList<MultiBackgroundImage>();
 		Cursor allValuesCursor = database.query(
 				MultiBackgroundConstants.IMAGE_PATH_TABLE, allColumns, null,
-				null, null, null, null);
+				null, null, null, MultiBackgroundConstants.IMAGE_NUMBER_COLUMN);
 		while (allValuesCursor.moveToNext()) {
 			allImages.add(MultiBackgroundImage.newInstance(allValuesCursor));
 		}
@@ -216,13 +214,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		return allImages;
 	}
 
+	/**
+	 * Adds a {@link MultiBackgroundImage} to the database
+	 *
+	 * @param imageNumber
+	 * @param path
+	 * @return The {@link MultiBackgroundImage} object having the above data
+	 */
 	public MultiBackgroundImage addMultiBackgroundImage(int imageNumber,
 			String path) {
 		boolean invalidInput = false;
 		if (imageNumber > MultiBackgroundConstants.MAX_IMAGES) {
-			Log.e(TAG, imageNumber
-					+ " images are not supported. Only "
-					+ MultiBackgroundConstants.MAX_IMAGES + " images are supported");
+			Log.e(TAG, imageNumber + " images are not supported. Only "
+					+ MultiBackgroundConstants.MAX_IMAGES
+					+ " images are supported");
 			invalidInput = true;
 		}
 
@@ -240,13 +245,210 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		values.put(MultiBackgroundConstants.PATH_COLUMN, path);
 		long insertId = database.insert(
 				MultiBackgroundConstants.IMAGE_PATH_TABLE, null, values);
-		Log.i(TAG, "Successfully created a new MBI  with id "
-				+ insertId);
 		if (insertId < 0) {
 			return null;
 		}
 		MultiBackgroundImage newMbi = new MultiBackgroundImage(insertId,
 				imageNumber, path);
+		Log.i(TAG, "Successfully created a new MBI: " + newMbi);
 		return newMbi;
+	}
+
+	/**
+	 * Updates those rows in database whose image number lies within the range
+	 * given by rangeOfImageNumbers. Also updates the image number of the source
+	 * and target images as well
+	 *
+	 * The updates are done as follows:
+	 *
+	 * 1. Update the image number of source view's row to -1 (since all the
+	 * image numbers have to unique)
+	 *
+	 * 2. Update the image numbers of all the rows by 1 or -1 (depending on drag
+	 * was made from right to left or left to right respectively)
+	 *
+	 * 3. Update the image number of target view's row by 1 or -1 as above.
+	 *
+	 * 4. Update the image number of source view's row equal to the index given
+	 * by rangeOfImageNumbers[1] or targetViewIndex
+	 *
+	 * @param rangeOfImageNumbers
+	 * @return True if positions of images were updated correctly. False
+	 *         otherwise
+	 */
+	public boolean updateRowWithinImageNumberRange(int[] rangeOfImageNumbers) {
+		int sourceViewIndex = rangeOfImageNumbers[0];
+		int targetViewIndex = rangeOfImageNumbers[1];
+
+		int delta = calculateDeltaToChangeRowNumbers(sourceViewIndex,
+				targetViewIndex);
+		if (delta == 0) {
+			return false;
+		}
+		/*
+		 * TODO: Do the following operation in a transaction, so that if any
+		 * operation fails, everything is rolledback.
+		 */
+		/*
+		 * Update the image number of source view's row to some constant which
+		 * is not expected to occur (since all the image numbers have to unique)
+		 */
+		if (updateImageNumber(sourceViewIndex, TEMP_UINQUE_IMAGE_NUMBER) != 1) {
+			Log.e(TAG, "Could not update the image number of source image");
+			return false;
+		}
+		/*
+		 * Update the image numbers of all the rows by 1 or -1 (depending on
+		 * drag was made from right to left or left to right respectively)
+		 */
+
+		Cursor rangeValueCursor = getRowsWithinImageNumberRange(rangeOfImageNumbers);
+		while (rangeValueCursor.moveToNext()) {
+			int currentImageNumber = rangeValueCursor
+					.getInt(rangeValueCursor
+							.getColumnIndex(MultiBackgroundConstants.IMAGE_NUMBER_COLUMN));
+			int newImageNumber = currentImageNumber + delta;
+			if (updateImageNumber(currentImageNumber, newImageNumber) != 1) {
+				Log.e(TAG,
+						"Could not update the image number of intermediate images");
+				return false;
+			}
+		}
+
+		/*
+		 * Update the image number of target view's row by 1 or -1 as above.
+		 */
+		if (updateImageNumber(targetViewIndex, targetViewIndex + delta) != 1) {
+			Log.e(TAG, "Could not update the image number of target image");
+			return false;
+		}
+
+		/*
+		 * Update the image number of source view's row equal to the index given
+		 * by rangeOfImageNumbers[1] or targetViewIndex
+		 */
+		if (updateImageNumber(TEMP_UINQUE_IMAGE_NUMBER, targetViewIndex) != 1) {
+			Log.e(TAG,
+					"Could not update the image number of source image to traget image's image number");
+			return false;
+		}
+		if (rangeValueCursor != null) {
+			rangeValueCursor.close();
+		}
+		Log.d(TAG, "Successfully updated the row numbers of all the images");
+		return true;
+	}
+
+	/**
+	 * Returns a cursor with all those rows whose image number lies withing the
+	 * given range.
+	 *
+	 * NOTE: Close the cursor once its used.
+	 *
+	 * @param rangeOfImageNumbers
+	 * @return
+	 */
+	public Cursor getRowsWithinImageNumberRange(int[] rangeOfImageNumbers) {
+		if (rangeOfImageNumbers == null || rangeOfImageNumbers.length != 2) {
+			throw new IllegalArgumentException(
+					"Wrong input for range of Image Numbers");
+		}
+
+		int sourceViewIndex = rangeOfImageNumbers[0];
+		int targetViewIndex = rangeOfImageNumbers[1];
+
+		if (sourceViewIndex == targetViewIndex) {
+			Log.w(TAG,
+					"Source and Target views are same. No operation needs to be done.");
+			return null;
+		}
+		/*
+		 * We have to decrease the index of all the images, if sourceViewIndex
+		 * is less than targetViewIndex which means that sourceView moved from
+		 * left to right If sourceView moved from right to left, we will have to
+		 * increase the index of all the images
+		 */
+		int smallerIndex, biggerIndex;
+		String orderBy = MultiBackgroundConstants.IMAGE_NUMBER_COLUMN;
+		if (sourceViewIndex < targetViewIndex) {
+			smallerIndex = sourceViewIndex;
+			biggerIndex = targetViewIndex;
+		} else {
+			smallerIndex = targetViewIndex;
+			biggerIndex = sourceViewIndex;
+			orderBy += " DESC";
+		}
+		/*
+		 * Create the query like: SELECT * FROM <table-name> WHERE
+		 * IMAGE_NUMBER_COLUMN > smallerIndex AND IMAGE_NUMBER_COLUMN <
+		 * biggerIndex
+		 */
+		Cursor rangeValueCursor = database.query(
+				MultiBackgroundConstants.IMAGE_PATH_TABLE, allColumns,
+				MultiBackgroundConstants.IMAGE_NUMBER_COLUMN + " > ? AND "
+						+ MultiBackgroundConstants.IMAGE_NUMBER_COLUMN
+						+ " <  ?", new String[] {
+						Integer.toString(smallerIndex),
+						Integer.toString(biggerIndex) }, null, null, orderBy,
+				null);
+		return rangeValueCursor;
+	}
+
+	/**
+	 * Return the value of Delta that should added or subtracted from the image
+	 * numbers that lie within the range of given source and target indices
+	 *
+	 * @param sourceViewIndex
+	 * @param targetViewIndex
+	 * @return
+	 */
+	private int calculateDeltaToChangeRowNumbers(int sourceViewIndex,
+			int targetViewIndex) {
+		if (sourceViewIndex == targetViewIndex) {
+			return 0;
+		}
+		return sourceViewIndex < targetViewIndex ? -1 : 1;
+	}
+
+	/**
+	 * Updates the image number of a row using its current image number
+	 *
+	 * @param currentImageNumber
+	 * @param newImageNumber
+	 * @return
+	 */
+	private int updateImageNumber(int currentImageNumber, int newImageNumber) {
+		ContentValues values = new ContentValues();
+		values.put(MultiBackgroundConstants.IMAGE_NUMBER_COLUMN, newImageNumber);
+		int rowsAffected = database.update(
+				MultiBackgroundConstants.IMAGE_PATH_TABLE, values,
+				MultiBackgroundConstants.IMAGE_NUMBER_COLUMN + "=?",
+				new String[] { Integer.toString(currentImageNumber) });
+		if (rowsAffected < 1) {
+			Log.e(TAG, "Unable to locate a row with image number: "
+					+ currentImageNumber);
+		} else {
+			Log.d(TAG, "Updated the image number from :" + currentImageNumber
+					+ " to " + newImageNumber);
+		}
+		return rowsAffected;
+	}
+
+	/**
+	 * Returns a cursor to access the row in database that has the given image
+	 * number
+	 *
+	 * NOTE: Close the cursor once its used.
+	 *
+	 * @param imageNumber
+	 * @return
+	 */
+	private Cursor getRowByImageNumber(int imageNumber) {
+		Cursor valueCursor = database.query(
+				MultiBackgroundConstants.IMAGE_PATH_TABLE, allColumns,
+				MultiBackgroundConstants.IMAGE_NUMBER_COLUMN + " = ? ",
+				new String[] { Integer.toString(imageNumber) }, null, null,
+				null, null);
+		return valueCursor;
 	}
 }
