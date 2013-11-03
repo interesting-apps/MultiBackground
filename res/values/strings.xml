@@ -1,9 +1,9 @@
 <resources>
 
     <string name="app_name">MultiBackground</string>
-    <string name="hello_world">Hello world!</string>
-    <string name="menu_settings">Settings</string>
-    <string name="title_activity_main">MainActivity</string>
-    <string name="wallpaper_description">Live Wallpaper</string>
+    <string name="wallpaper_description">Wallpaper Changer</string>
+    <string name="plus_image_description">Add Image</string>
+    <string name="delete_image_description">Delete Image</string>
+    <string name="set_wallpaper_button_description">Set Wallpaper</string>
 
 </resources>

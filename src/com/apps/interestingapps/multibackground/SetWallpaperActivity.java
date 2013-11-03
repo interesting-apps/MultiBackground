@@ -1,7 +1,5 @@
 package com.apps.interestingapps.multibackground;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,10 +7,12 @@ import android.app.Activity;
 import android.app.WallpaperManager;
 import android.content.Intent;
 import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.util.Log;
+import android.view.Display;
 import android.view.View;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
@@ -22,7 +22,9 @@ import android.widget.Toast;
 import com.apps.interestingapps.multibackground.common.DatabaseHelper;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundConstants;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundImage;
+import com.apps.interestingapps.multibackground.common.MultiBackgroundUtilities;
 import com.apps.interestingapps.multibackground.listeners.AddImageClickListener;
+import com.apps.interestingapps.multibackground.listeners.DragToDeleteListener;
 import com.apps.interestingapps.multibackground.listeners.MbiDragListener;
 import com.apps.interestingapps.multibackground.listeners.MbiLongClickListener;
 
@@ -38,19 +40,22 @@ public class SetWallpaperActivity extends Activity {
 	private static final String TAG = "SetWallpaperActivity";
 	private ImageView plusImageView;
 	private HorizontalScrollView hsv;
+	private ImageView deleteImageView;
+	private int screenX, screenY;
 
+	@SuppressWarnings("deprecation")
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
 
-		initializeDatabase();
+		Display display = getWindowManager().getDefaultDisplay();
+		screenX = display.getWidth();
+		screenY = display.getHeight();
+		databaseHelper = DatabaseHelper.initializeDatabase(this);
+		initializeStaticViews();
 		imageViewList = new ArrayList<ImageView>();
-		linearLayoutInsideHsv = (LinearLayout) findViewById(R.id.linearLayoutInsideHsv);
-		plusImageView = (ImageView) findViewById(R.id.plusImageView);
-		plusImageView.setOnClickListener(new AddImageClickListener(this));
 		getAllImages();
-		 hsv = (HorizontalScrollView)findViewById(R.id.horizontalScrollView);
 	}
 
 	@Override
@@ -58,8 +63,16 @@ public class SetWallpaperActivity extends Activity {
 		super.onDestroy();
 		if (databaseHelper != null) {
 			databaseHelper.closeDatabase();
-			databaseHelper.close();
 		}
+	}
+
+	private void initializeStaticViews() {
+		linearLayoutInsideHsv = (LinearLayout) findViewById(R.id.linearLayoutInsideHsv);
+		plusImageView = (ImageView) findViewById(R.id.plusImageView);
+		plusImageView.setOnClickListener(new AddImageClickListener(this));
+		hsv = (HorizontalScrollView) findViewById(R.id.horizontalScrollView);
+		deleteImageView = (ImageView) findViewById(R.id.deleteImageView);
+		deleteImageView.setOnDragListener(new DragToDeleteListener(this));
 	}
 
 	/**
@@ -75,18 +88,6 @@ public class SetWallpaperActivity extends Activity {
 		List<MultiBackgroundImage> allImages = databaseHelper.getAllImages();
 		for (MultiBackgroundImage image : allImages) {
 			addImageToHorizontalLayout(image);
-		}
-	}
-
-	private void initializeDatabase() {
-		databaseHelper = DatabaseHelper.getInstance(this);
-		try {
-			databaseHelper.createDataBase();
-			databaseHelper.openDatabase();
-			Log.i(this.getLocalClassName(), "Database opened");
-		} catch (IOException e) {
-			Log.i(TAG, "Error occurred while opening database.");
-			e.printStackTrace();
 		}
 	}
 
@@ -112,7 +113,6 @@ public class SetWallpaperActivity extends Activity {
 		String[] projection = { MediaStore.Images.Media.DATA };
 		Cursor cursor = getContentResolver().query(uri, projection, null, null,
 				null);
-		// managedQuery(uri, projection, null, null, null);
 		if (cursor != null && cursor.moveToFirst()) {
 			int column_index = cursor
 					.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
@@ -132,19 +132,33 @@ public class SetWallpaperActivity extends Activity {
 	 */
 	private void addImageToHorizontalLayout(MultiBackgroundImage mbi) {
 		ImageView iv = new ImageView(getApplicationContext());
-		File imageFile = new File(mbi.getPath());
-		if (imageFile.exists()) {
-			iv.setImageURI(Uri.fromFile(imageFile));
-		} else {
+		iv.setPadding(5, 5, 5, 5);
+		Bitmap bitmap = generateImageThumbnail(mbi.getPath());
+		if (bitmap == null) {
 			Log.w(TAG,
 					"Unable to load image from the given path. Loading the default image:");
-			iv.setBackgroundResource(R.drawable.image_not_found);
+			bitmap = generateImageThumbnail(R.drawable.image_not_found);
 		}
+		iv.setImageBitmap(bitmap);
 		iv.setOnDragListener(new MbiDragListener(this));
-		iv.setOnLongClickListener(new MbiLongClickListener());
+		iv.setOnLongClickListener(new MbiLongClickListener(this));
 
 		linearLayoutInsideHsv.addView(iv);
 		imageViewList.add(iv);
+	}
+
+	private Bitmap generateImageThumbnail(String imagePath) {
+		Bitmap scaledBitmap = null;
+		scaledBitmap = MultiBackgroundUtilities.scaleDownImageAndDecode(
+				imagePath, screenX / 4, screenY / 4);
+		return scaledBitmap;
+	}
+
+	private Bitmap generateImageThumbnail(int resourceId) {
+		Bitmap scaledBitmap = null;
+		scaledBitmap = MultiBackgroundUtilities.scaleDownImageAndDecode(
+				getResources(), resourceId, screenX / 4, screenY / 4);
+		return scaledBitmap;
 	}
 
 	/**
@@ -217,28 +231,46 @@ public class SetWallpaperActivity extends Activity {
 	private int[] getIndexOfDragMovement(ImageView sourceView,
 			ImageView targetView) {
 		int[] indices = new int[2];
-		indices[0] = -1;
-		indices[1] = -1;
-		for (int i = 0; i < imageViewList.size(); i++) {
-			ImageView currentView = imageViewList.get(i);
-			if (currentView.equals(sourceView)) {
-				indices[0] = i;
-			}
-
-			if (currentView.equals(targetView)) {
-				indices[1] = i;
-			}
-
-			if (indices[0] > -1 && indices[1] > -1) {
-				Log.d(TAG, "Found the source View index as: " + indices[0]
-						+ " and targetView index as: " + indices[1]);
-				break;
-			}
+		indices[0] = getIndexOfImageView(sourceView);
+		indices[1] = getIndexOfImageView(targetView);
+		if (indices[0] > -1 && indices[1] > -1) {
+			Log.d(TAG, "Found the source View index as: " + indices[0]
+					+ " and targetView index as: " + indices[1]);
 		}
 		return indices;
 	}
-	
+
+	private int getIndexOfImageView(ImageView imageView) {
+		for (int i = 0; i < imageViewList.size(); i++) {
+			ImageView currentView = imageViewList.get(i);
+			if (currentView.equals(imageView)) {
+				return i;
+			}
+		}
+		Log.e(TAG, "Unable to find the index of the given image");
+		return -1;
+	}
+
 	public void scrollHorizontalScrollView(int scrollBy) {
 		hsv.smoothScrollBy(scrollBy, 0);
+	}
+
+	public void changeDeleteImageView(int imageId) {
+		deleteImageView.setImageResource(imageId);
+	}
+
+	public void changeDeleteImageViewVisibilty(int visibility) {
+		deleteImageView.setVisibility(visibility);
+	}
+
+	public void deleteImage(ImageView imageToBeDeleted) {
+		int indexOfImage = getIndexOfImageView(imageToBeDeleted);
+		if (!databaseHelper.deleteMultibackgroundImage(indexOfImage)) {
+			Toast.makeText(getApplicationContext(),
+					"Unable to delete the desired image", Toast.LENGTH_SHORT)
+					.show();
+		} else {
+			getAllImages();
+		}
 	}
 }

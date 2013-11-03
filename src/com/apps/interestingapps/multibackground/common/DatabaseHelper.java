@@ -24,7 +24,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 	private Context context;
 	private SQLiteDatabase database;
 	private static final String TAG = "DatabaseHelper";
-	private static final int TEMP_UINQUE_IMAGE_NUMBER = 21;
+	private static final int TEMP_UINQUE_IMAGE_NUMBER = MultiBackgroundConstants.MAX_IMAGES + 2;
+	private volatile boolean isDatabaseUpdated = false;
+	private static int openConnections = 0;
 
 	private String[] allColumns = { MultiBackgroundConstants.ID_COLUMN,
 			MultiBackgroundConstants.IMAGE_NUMBER_COLUMN,
@@ -36,12 +38,29 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		this.context = context;
 	}
 
+	public static DatabaseHelper initializeDatabase(Context contextForDatabase) {
+		DatabaseHelper databaseHelper = DatabaseHelper
+				.getInstance(contextForDatabase);
+		try {
+			databaseHelper.createDataBase();
+			databaseHelper.openDatabase();
+			Log.i(TAG, "Database opened");
+		} catch (IOException e) {
+			Log.i(TAG, "Error occurred while opening database.");
+			e.printStackTrace();
+		}
+		return databaseHelper;
+	}
+
 	public static DatabaseHelper getInstance(Context context) {
 		if (context == null) {
 			throw new IllegalArgumentException("Context is null");
 		}
 		if (databaseHelper == null) {
 			databaseHelper = new DatabaseHelper(context);
+		}
+		synchronized (databaseHelper) {
+			openConnections++;
 		}
 		return databaseHelper;
 	}
@@ -57,6 +76,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 	@Override
 	public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
 
+	}
+
+	public boolean isDatabaseUpdated() {
+		return isDatabaseUpdated;
+	}
+
+	public void setDatabaseUpdated(boolean isDatabaseUpdated) {
+		this.isDatabaseUpdated = isDatabaseUpdated;
 	}
 
 	/**
@@ -179,8 +206,16 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 	 */
 	public void closeDatabase() {
 		if (database != null) {
-			database.close();
-			database = null;
+			synchronized (databaseHelper) {
+				if (openConnections > 0) {
+					openConnections--;
+					if (openConnections == 0) {
+						database.close();
+						databaseHelper.close();
+						database = null;
+					}
+				}
+			}
 		}
 	}
 
@@ -248,6 +283,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		if (insertId < 0) {
 			return null;
 		}
+		isDatabaseUpdated = true;
 		MultiBackgroundImage newMbi = new MultiBackgroundImage(insertId,
 				imageNumber, path);
 		Log.i(TAG, "Successfully created a new MBI: " + newMbi);
@@ -301,18 +337,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		 * Update the image numbers of all the rows by 1 or -1 (depending on
 		 * drag was made from right to left or left to right respectively)
 		 */
-
-		Cursor rangeValueCursor = getRowsWithinImageNumberRange(rangeOfImageNumbers);
-		while (rangeValueCursor.moveToNext()) {
-			int currentImageNumber = rangeValueCursor
-					.getInt(rangeValueCursor
-							.getColumnIndex(MultiBackgroundConstants.IMAGE_NUMBER_COLUMN));
-			int newImageNumber = currentImageNumber + delta;
-			if (updateImageNumber(currentImageNumber, newImageNumber) != 1) {
-				Log.e(TAG,
-						"Could not update the image number of intermediate images");
-				return false;
-			}
+		if (!changeImageNumbersWithinRangeByDelta(rangeOfImageNumbers, delta)) {
+			Log.e(TAG,
+					"Could not update the image numbers of rows within the given range");
+			return false;
 		}
 
 		/*
@@ -332,10 +360,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 					"Could not update the image number of source image to traget image's image number");
 			return false;
 		}
-		if (rangeValueCursor != null) {
-			rangeValueCursor.close();
-		}
 		Log.d(TAG, "Successfully updated the row numbers of all the images");
+		isDatabaseUpdated = true;
 		return true;
 	}
 
@@ -430,6 +456,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		} else {
 			Log.d(TAG, "Updated the image number from :" + currentImageNumber
 					+ " to " + newImageNumber);
+			isDatabaseUpdated = true;
 		}
 		return rowsAffected;
 	}
@@ -450,5 +477,70 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 				new String[] { Integer.toString(imageNumber) }, null, null,
 				null, null);
 		return valueCursor;
+	}
+
+	/**
+	 * Method to update the image numbers of the rows that lie within the given
+	 * range exclusive of the given range image numbers
+	 *
+	 * @param rangeOfImageNumbers
+	 * @param delta
+	 * @return
+	 */
+	private boolean
+			changeImageNumbersWithinRangeByDelta(int[] rangeOfImageNumbers,
+					int delta) {
+		Cursor rangeValueCursor = getRowsWithinImageNumberRange(rangeOfImageNumbers);
+		while (rangeValueCursor.moveToNext()) {
+			int currentImageNumber = rangeValueCursor
+					.getInt(rangeValueCursor
+							.getColumnIndex(MultiBackgroundConstants.IMAGE_NUMBER_COLUMN));
+			int newImageNumber = currentImageNumber + delta;
+			if (updateImageNumber(currentImageNumber, newImageNumber) != 1) {
+				Log.e(TAG,
+						"Could not update the image number of intermediate images");
+				return false;
+			}
+			isDatabaseUpdated = true;
+		}
+		if (rangeValueCursor != null) {
+			rangeValueCursor.close();
+		}
+		return true;
+	}
+
+	/**
+	 * Method to delete a image from database using its image number. The method
+	 * also updates the image numbers of remaining rows by decreasing it by 1
+	 *
+	 * @param imageNumber
+	 * @return
+	 */
+	public boolean deleteMultibackgroundImage(int imageNumber) {
+		int[] rangeOfImageNumbers = { imageNumber, TEMP_UINQUE_IMAGE_NUMBER };
+		/*
+		 * Delete the desired row first, so that the next image's image number
+		 * can be reduced by 1
+		 */
+		int numOfRowsAffected = database.delete(
+				MultiBackgroundConstants.IMAGE_PATH_TABLE,
+				MultiBackgroundConstants.IMAGE_NUMBER_COLUMN + "=?",
+				new String[] { Integer.toString(imageNumber) });
+		if (numOfRowsAffected < 1) {
+			Log.e(TAG, "Unable to delete the row with imageNumber: "
+					+ imageNumber);
+			return false;
+		}
+		isDatabaseUpdated = true;
+		/*
+		 * Since a row is deleted, then we have to reduce the image numbers of
+		 * all the rows that have image number greater than the image number of
+		 * the deleted images
+		 */
+		if (!changeImageNumbersWithinRangeByDelta(rangeOfImageNumbers, -1)) {
+			Log.e(TAG, "Unable to update the rows within the given range ");
+			return false;
+		}
+		return true;
 	}
 }

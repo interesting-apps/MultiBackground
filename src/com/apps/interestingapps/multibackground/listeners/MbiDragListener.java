@@ -1,11 +1,10 @@
 package com.apps.interestingapps.multibackground.listeners;
 
-import android.content.Context;
+import android.util.Log;
 import android.view.Display;
 import android.view.DragEvent;
 import android.view.View;
 import android.view.View.OnDragListener;
-import android.view.WindowManager;
 import android.widget.ImageView;
 
 import com.apps.interestingapps.multibackground.SetWallpaperActivity;
@@ -24,47 +23,64 @@ public class MbiDragListener implements OnDragListener {
 		this.setWallpaperActivity = setWallpaperActivity;
 	}
 
+	@SuppressWarnings("deprecation")
 	public boolean onDrag(View view, DragEvent event) {
 		int action = event.getAction();
 		ImageView targetView = (ImageView) view;
 		ImageView sourceView = (ImageView) event.getLocalState();
+		
+		Display display = setWallpaperActivity.getWindowManager()
+				.getDefaultDisplay();
+		int screenWidth = display.getWidth();
+		int halfScreenWidth = screenWidth / 2;
+		
 		switch (action) {
 		/*
 		 * For now implementing change in positions of views once the view is
 		 * dropped at the desired positions.
-		 *
+		 * 
 		 * TODO: Update the code so that there is a live update of position of
 		 * views as the source image is dragged through them
-		 *
+		 * 
 		 * TODO: Update the image number column with the new index of images
 		 */
 		case DragEvent.ACTION_DRAG_STARTED:
 			// do nothing
 			break;
 		case DragEvent.ACTION_DRAG_LOCATION:
-
-			break;
+//			int dragX = (int)event.getX();
+//			int targetViewX = (int)targetView.getX();
+//			int distanceOfTargetViewFromLeft = targetViewX % screenWidth ;
+//			int distanceDragXFromLeft = dragX + distanceOfTargetViewFromLeft;
+//			Log.i(TAG, "Drag X = " + dragX + " Distance from left:" + distanceDragXFromLeft);
+//			int diffX = 0;
+//			if(distanceDragXFromLeft < halfScreenWidth) {
+//				diffX = halfScreenWidth - distanceDragXFromLeft; 
+//			} else {
+//				diffX = distanceDragXFromLeft - screenWidth;
+//			}
+//			
+//			setWallpaperActivity.scrollHorizontalScrollView(-1 * diffX);
+//			break;
 		case DragEvent.ACTION_DRAG_ENTERED:
 			float sourceViewX = sourceView.getX();
 			float targetViewX = targetView.getX();
 
 			int diffX = (int) (sourceViewX - targetViewX);
-			if (diffX == 0) {
-				WindowManager wm = (WindowManager) setWallpaperActivity
-						.getApplicationContext().getSystemService(
-								Context.WINDOW_SERVICE);
-				Display display = wm.getDefaultDisplay();
-				int screenX = display.getWidth();
-				/*
-				 * If the sourceView is at the left end of the screen, the scoll
-				 * the list a little left, else scroll the list a little right.
-				 */
-				if (targetViewX <= screenX / 2) {
-					diffX = screenX / 2;
-				} else {
-					diffX = -screenX / 2;
-				}
+			
+			int targetViewXFromLeftCorner = (int) targetViewX % screenWidth;
+			/*
+			 * If the sourceView is at the left end of the screen, then scroll
+			 * the list a little left, else scroll the list a little right.
+			 */
+			if (targetViewXFromLeftCorner < halfScreenWidth) {
+				diffX = halfScreenWidth;
+			} else if (targetViewXFromLeftCorner + targetView.getWidth() > screenWidth) {
+				diffX = -halfScreenWidth;
+			} else {
+				Log.d(TAG, "TargetView X: " + targetViewX);
 			}
+
 			/*
 			 * Scroll the view in the opposite direction of where the drag is
 			 * being made
