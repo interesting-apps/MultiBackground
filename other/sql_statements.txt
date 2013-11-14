@@ -4,3 +4,9 @@ CREATE TABLE image_path (
     "PATH" TEXT NOT NULL)
     
 Create INDEX IMAGE_NUMBER_INDEX ON IMAGE_PATH(IMAGE_NUMBER);
+
+update image_path set image_number = image_number - 1 where image_number > 2 AND image_number < 5
+
+create view view1 as select * from image_path where image_number > 1 AND image_number < 6 order by image_number desc
+
+update image_path set image_number = image_number + (1) where  _id in (select _id from view1)

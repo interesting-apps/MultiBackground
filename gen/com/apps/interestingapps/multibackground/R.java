@@ -23,6 +23,7 @@ public final class R {
         public static final int small_green_circle_plus_image=0x7f020009;
     }
     public static final class id {
+        public static final int adView=0x7f070005;
         public static final int button1=0x7f070000;
         public static final int deleteImageView=0x7f070002;
         public static final int horizontalScrollView=0x7f070003;

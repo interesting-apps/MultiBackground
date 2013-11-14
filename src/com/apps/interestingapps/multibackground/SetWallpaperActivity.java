@@ -27,6 +27,8 @@ import com.apps.interestingapps.multibackground.listeners.AddImageClickListener;
 import com.apps.interestingapps.multibackground.listeners.DragToDeleteListener;
 import com.apps.interestingapps.multibackground.listeners.MbiDragListener;
 import com.apps.interestingapps.multibackground.listeners.MbiLongClickListener;
+import com.google.ads.AdRequest;
+import com.google.ads.AdView;
 
 /**
  * Class to Set the live wallpaper and select images to be used in the live
@@ -41,7 +43,10 @@ public class SetWallpaperActivity extends Activity {
 	private ImageView plusImageView;
 	private HorizontalScrollView hsv;
 	private ImageView deleteImageView;
-	private int screenX, screenY;
+	private int screenWidth, screenHeight, quarterScreenWidth,
+			quarterScreenHeight;
+	
+	private AdView adview;
 
 	@SuppressWarnings("deprecation")
 	@Override
@@ -50,12 +55,20 @@ public class SetWallpaperActivity extends Activity {
 		setContentView(R.layout.main);
 
 		Display display = getWindowManager().getDefaultDisplay();
-		screenX = display.getWidth();
-		screenY = display.getHeight();
+		screenWidth = display.getWidth();
+		screenHeight = display.getHeight();
+		quarterScreenWidth = screenWidth / 4;
+		quarterScreenHeight = screenHeight / 4;
 		databaseHelper = DatabaseHelper.initializeDatabase(this);
 		initializeStaticViews();
 		imageViewList = new ArrayList<ImageView>();
 		getAllImages();
+		
+		adview = (AdView) findViewById(R.id.adView);
+		AdRequest re = new AdRequest();
+//		re.addTestDevice(AdRequest.TEST_EMULATOR);
+//		re.addTestDevice("134A570CAEC830760EF3144B1EED15A5");
+		adview.loadAd(re);
 	}
 
 	@Override
@@ -133,11 +146,13 @@ public class SetWallpaperActivity extends Activity {
 	private void addImageToHorizontalLayout(MultiBackgroundImage mbi) {
 		ImageView iv = new ImageView(getApplicationContext());
 		iv.setPadding(5, 5, 5, 5);
-		Bitmap bitmap = generateImageThumbnail(mbi.getPath());
+		Bitmap bitmap = generateImageThumbnail(mbi.getPath(),
+				quarterScreenWidth, quarterScreenHeight);
 		if (bitmap == null) {
 			Log.w(TAG,
 					"Unable to load image from the given path. Loading the default image:");
-			bitmap = generateImageThumbnail(R.drawable.image_not_found);
+			bitmap = generateImageThumbnail(R.drawable.image_not_found,
+					quarterScreenWidth, quarterScreenHeight);
 		}
 		iv.setImageBitmap(bitmap);
 		iv.setOnDragListener(new MbiDragListener(this));
@@ -147,17 +162,31 @@ public class SetWallpaperActivity extends Activity {
 		imageViewList.add(iv);
 	}
 
-	private Bitmap generateImageThumbnail(String imagePath) {
-		Bitmap scaledBitmap = null;
-		scaledBitmap = MultiBackgroundUtilities.scaleDownImageAndDecode(
-				imagePath, screenX / 4, screenY / 4);
-		return scaledBitmap;
+	private Bitmap generateImageThumbnail(String imagePath,
+			int width,
+			int height) {
+		Bitmap scaledBitmap = MultiBackgroundUtilities.scaleDownImageAndDecode(
+				imagePath, width, height);
+		if(scaledBitmap == null) {
+			return scaledBitmap;
+		}
+		int desiredWidth = scaledBitmap.getWidth() >= quarterScreenWidth ? quarterScreenWidth
+				: scaledBitmap.getWidth();
+		int desiredHeight = scaledBitmap.getHeight() >= quarterScreenHeight ? quarterScreenHeight
+				: scaledBitmap.getHeight();
+		Bitmap rotatedBitmap = MultiBackgroundUtilities
+				.resizeBitmapAndCorrectBitmapOrientation(imagePath, scaledBitmap, desiredWidth,
+						desiredHeight);
+		if(rotatedBitmap != scaledBitmap) {
+			scaledBitmap.recycle();
+		}
+		return rotatedBitmap;
 	}
 
-	private Bitmap generateImageThumbnail(int resourceId) {
-		Bitmap scaledBitmap = null;
-		scaledBitmap = MultiBackgroundUtilities.scaleDownImageAndDecode(
-				getResources(), resourceId, screenX / 4, screenY / 4);
+	private Bitmap
+			generateImageThumbnail(int resourceId, int width, int height) {
+		Bitmap scaledBitmap = MultiBackgroundUtilities.scaleDownImageAndDecode(
+				getResources(), resourceId, width, height);
 		return scaledBitmap;
 	}
 

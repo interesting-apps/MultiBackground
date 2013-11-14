@@ -325,43 +325,53 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		 * TODO: Do the following operation in a transaction, so that if any
 		 * operation fails, everything is rolledback.
 		 */
-		/*
-		 * Update the image number of source view's row to some constant which
-		 * is not expected to occur (since all the image numbers have to unique)
-		 */
-		if (updateImageNumber(sourceViewIndex, TEMP_UINQUE_IMAGE_NUMBER) != 1) {
-			Log.e(TAG, "Could not update the image number of source image");
-			return false;
-		}
-		/*
-		 * Update the image numbers of all the rows by 1 or -1 (depending on
-		 * drag was made from right to left or left to right respectively)
-		 */
-		if (!changeImageNumbersWithinRangeByDelta(rangeOfImageNumbers, delta)) {
-			Log.e(TAG,
-					"Could not update the image numbers of rows within the given range");
-			return false;
-		}
+		try {
+			database.beginTransaction();
+			/*
+			 * Update the image number of source view's row to some constant
+			 * which is not expected to occur (since all the image numbers have
+			 * to unique)
+			 */
+			if (updateImageNumber(sourceViewIndex, TEMP_UINQUE_IMAGE_NUMBER) != 1) {
+				Log.e(TAG, "Could not update the image number of source image");
+				return false;
+			}
+			/*
+			 * Update the image numbers of all the rows by 1 or -1 (depending on
+			 * drag was made from right to left or left to right respectively)
+			 */
+			if (!changeImageNumbersWithinRangeByDelta(rangeOfImageNumbers,
+					delta)) {
+				Log.e(TAG,
+						"Could not update the image numbers of rows within the given range");
+				return false;
+			}
 
-		/*
-		 * Update the image number of target view's row by 1 or -1 as above.
-		 */
-		if (updateImageNumber(targetViewIndex, targetViewIndex + delta) != 1) {
-			Log.e(TAG, "Could not update the image number of target image");
-			return false;
-		}
+			/*
+			 * Update the image number of target view's row by 1 or -1 as above.
+			 */
+			if (updateImageNumber(targetViewIndex, targetViewIndex + delta) != 1) {
+				Log.e(TAG, "Could not update the image number of target image");
+				return false;
+			}
 
-		/*
-		 * Update the image number of source view's row equal to the index given
-		 * by rangeOfImageNumbers[1] or targetViewIndex
-		 */
-		if (updateImageNumber(TEMP_UINQUE_IMAGE_NUMBER, targetViewIndex) != 1) {
-			Log.e(TAG,
-					"Could not update the image number of source image to traget image's image number");
-			return false;
+			/*
+			 * Update the image number of source view's row equal to the index
+			 * given by rangeOfImageNumbers[1] or targetViewIndex
+			 */
+			if (updateImageNumber(TEMP_UINQUE_IMAGE_NUMBER, targetViewIndex) != 1) {
+				Log.e(TAG,
+						"Could not update the image number of source image to traget image's image number");
+				return false;
+			}
+			Log.d(TAG, "Successfully updated the row numbers of all the images");
+			isDatabaseUpdated = true;
+			database.setTransactionSuccessful();
+		} catch (Exception e) {
+			Log.e(TAG, "Error occurred while completing transaction. ");
+		} finally {
+			database.endTransaction();
 		}
-		Log.d(TAG, "Successfully updated the row numbers of all the images");
-		isDatabaseUpdated = true;
 		return true;
 	}
 
@@ -506,6 +516,80 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		if (rangeValueCursor != null) {
 			rangeValueCursor.close();
 		}
+		// String viewName = "view" + System.currentTimeMillis();
+		// /*
+		// * Create view like: create view view1 as select * from image_path
+		// where
+		// * image_number > 1 AND image_number < 6 order by image_number desc
+		// */
+		// String createViewQuery = "CREATE VIEW " + viewName
+		// + " as SELECT * FROM "
+		// + MultiBackgroundConstants.IMAGE_PATH_TABLE + " WHERE "
+		// + MultiBackgroundConstants.IMAGE_NUMBER_COLUMN + " >  "
+		// + rangeOfImageNumbers[0] + " AND "
+		// + MultiBackgroundConstants.IMAGE_NUMBER_COLUMN + " < "
+		// + rangeOfImageNumbers[1];
+		// String orderBy = " ORDER BY " +
+		// MultiBackgroundConstants.IMAGE_NUMBER_COLUMN;
+		// if(delta == -1) {
+		// orderBy += " DESC";
+		// }
+		// createViewQuery += orderBy;
+		// try {
+		// database.beginTransaction();
+		// try {
+		// database.execSQL(createViewQuery);
+		// ContentValues values = new ContentValues();
+		// values.put("tempValue", "tempValue");
+		// database.insert(
+		// "temp_table", null, values);
+		// Log.i(TAG, "Created a view with name: " + viewName);
+		// } catch (Exception e) {
+		// Log.e(TAG, "Some error occurred while creating view: " + viewName);
+		// e.printStackTrace();
+		// return false;
+		// }
+		//
+		// /*
+		// * Generate query like: update image_path set image_number =
+		// * image_number + (1) where _id in (select _id from view1)
+		// */
+		// String updateQuery = "UPDATE "
+		// + MultiBackgroundConstants.IMAGE_PATH_TABLE + " SET "
+		// + MultiBackgroundConstants.IMAGE_NUMBER_COLUMN + " = "
+		// + MultiBackgroundConstants.IMAGE_NUMBER_COLUMN + " + (" + delta
+		// + ") " + " WHERE " + MultiBackgroundConstants.ID_COLUMN
+		// + " in ( SELECT " + MultiBackgroundConstants.ID_COLUMN
+		// + " FROM " + viewName + ")";
+		//
+		// isDatabaseUpdated = true;
+		// try {
+		// database.execSQL(updateQuery);
+		// } catch (Exception e) {
+		// Log.e(TAG, "Some error occurred while updating the rows");
+		// e.printStackTrace();
+		// return false;
+		// }
+		//
+		// String dropViewQuery = "DROP VIEW IF EXISTS " + viewName;
+		// try {
+		// database.execSQL(dropViewQuery);
+		// database.delete("temp_table", null, null);
+		// Log.i(TAG, "Deleted a view with name: " + viewName);
+		// database.query(MultiBackgroundConstants.IMAGE_PATH_TABLE,
+		// new String[] { MultiBackgroundConstants.ID_COLUMN },
+		// MultiBackgroundConstants.ID_COLUMN + " = ?",
+		// new String[] { "-1" }, null, null, null);
+		// } catch (Exception e) {
+		// Log.e(TAG, "Some error occurred while deleting view: " + viewName);
+		// e.printStackTrace();
+		// }
+		// database.setTransactionSuccessful();
+		// } catch (Exception e) {
+		//
+		// } finally {
+		// database.endTransaction();
+		// }
 		return true;
 	}
 

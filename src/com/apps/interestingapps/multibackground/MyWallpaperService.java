@@ -173,11 +173,11 @@ public class MyWallpaperService extends WallpaperService {
 		private void changeBackground(Canvas canvas) {
 			if (changeBackground) {
 				Bitmap scaledBitmap;
-				if (imageList != null && currentImageNumber != -1) {
+				boolean resized = false;
+				if (imageList.size() != 0 && currentImageNumber != -1) {
+					getNextImageNumber();
 					String imagePath = imageList.get(currentImageNumber)
 							.getPath();
-					getNextImageNumber();
-
 					scaledBitmap = MultiBackgroundUtilities
 							.scaleDownImageAndDecode(imagePath, screenX,
 									screenY);
@@ -186,6 +186,12 @@ public class MyWallpaperService extends WallpaperService {
 								.scaleDownImageAndDecode(getResources(),
 										R.drawable.default_background, screenX,
 										screenY);
+					} else {
+						scaledBitmap = MultiBackgroundUtilities
+								.resizeBitmapAndCorrectBitmapOrientation(
+										imagePath, scaledBitmap, screenX,
+										screenY);
+						resized = true;
 					}
 				} else {
 					/*
@@ -200,8 +206,15 @@ public class MyWallpaperService extends WallpaperService {
 				}
 				changeBackground = false;
 				canvas.drawColor(0, android.graphics.PorterDuff.Mode.CLEAR);
-				if(scaledBitmap != null) {
-					canvas.drawBitmap(scaledBitmap, 0, 0, null);
+				if (scaledBitmap != null) {
+					if (resized) {
+						canvas.drawBitmap(scaledBitmap, 0, 0, null);
+						resized = false;
+					} else {
+						MultiBackgroundUtilities.resizeBitmap(scaledBitmap,
+								screenX, screenY);
+						canvas.drawBitmap(scaledBitmap, 0, 0, null);
+					}
 				}
 			}
 		}

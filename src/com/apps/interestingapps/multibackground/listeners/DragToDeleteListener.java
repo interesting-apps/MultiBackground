@@ -33,10 +33,6 @@ public class DragToDeleteListener implements OnDragListener {
 			setWallpaperActivity.changeDeleteImageView(R.drawable.delete_bin);
 			break;
 		case DragEvent.ACTION_DROP:
-			/*
-			 * TODO: add code to delete the image from database and update the
-			 * image numbers of all of the images
-			 */
 			ImageView sourceImageView = (ImageView)event.getLocalState();
 			setWallpaperActivity.deleteImage(sourceImageView);
 			setWallpaperActivity.changeDeleteImageView(R.drawable.delete_bin);
