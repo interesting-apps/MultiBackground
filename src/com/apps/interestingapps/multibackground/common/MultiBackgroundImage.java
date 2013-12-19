@@ -7,32 +7,32 @@ import android.database.Cursor;
  */
 public class MultiBackgroundImage implements Comparable<MultiBackgroundImage> {
 
-	private long _id;
-	private int imageNumber;
+	private int _id;
+	private int nextImageNumber;
 	private String path;
 	private int imageViewIndexNumber;
 
-	public MultiBackgroundImage(long _id, int imageNumber, String path) {
+	public MultiBackgroundImage(int _id, int imageNumber, String path) {
 		super();
 		this._id = _id;
-		this.imageNumber = imageNumber;
+		this.nextImageNumber = imageNumber;
 		this.path = path;
 	}
 
-	public long get_id() {
+	public int get_id() {
 		return _id;
 	}
 
-	public void set_id(long _id) {
+	public void set_id(int _id) {
 		this._id = _id;
 	}
 
-	public int getImageNumber() {
-		return imageNumber;
+	public int getNextImageNumber() {
+		return nextImageNumber;
 	}
 
-	public void setImageNumber(int imageNumber) {
-		this.imageNumber = imageNumber;
+	public void setNextImageNumber(int imageNumber) {
+		this.nextImageNumber = imageNumber;
 	}
 
 	public String getPath() {
@@ -63,7 +63,7 @@ public class MultiBackgroundImage implements Comparable<MultiBackgroundImage> {
 			return 1;
 		}
 
-		return this.getImageNumber() - rhs.getImageNumber();
+		return this.getNextImageNumber() - rhs.getNextImageNumber();
 	}
 
 	/**
@@ -74,10 +74,10 @@ public class MultiBackgroundImage implements Comparable<MultiBackgroundImage> {
 	 * @return
 	 */
 	public static MultiBackgroundImage newInstance(Cursor cursor) {
-		long cursor_id = cursor.getLong(cursor
+		int cursor_id = cursor.getInt(cursor
 				.getColumnIndex(MultiBackgroundConstants.ID_COLUMN));
 		int cursorImageNumber = cursor.getInt(cursor
-				.getColumnIndex(MultiBackgroundConstants.IMAGE_NUMBER_COLUMN));
+				.getColumnIndex(MultiBackgroundConstants.NEXT_IMAGE_NUMBER_COLUMN));
 		String cursorPath = cursor.getString(cursor
 				.getColumnIndex(MultiBackgroundConstants.PATH_COLUMN));
 		return new MultiBackgroundImage(cursor_id, cursorImageNumber,
@@ -90,7 +90,7 @@ public class MultiBackgroundImage implements Comparable<MultiBackgroundImage> {
 	public String toString() {
 		StringBuffer sb = new StringBuffer("");
 		sb.append("MultiBackgroundImage: _id = ").append(_id).append(
-				" imageNumber = ").append(imageNumber).append(" path = ")
+				" imageNumber = ").append(nextImageNumber).append(" path = ")
 				.append(path);
 		return sb.toString();
 	}

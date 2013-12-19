@@ -26,7 +26,7 @@ public class MyWallpaperService extends WallpaperService {
 	private class MyWallpaperEngine extends Engine {
 		private final Handler handler = new Handler();
 		private float downX, upX;
-		private final double THRESHOLD_FOR_SCREEN_CHANGE = 0.41;
+		private final double THRESHOLD_FOR_SCREEN_CHANGE = 0.53;
 		private final double SCREEN_COVERAGE_FACTOR = 0.45;
 		private int screenX, screenY;
 		private boolean changeBackground = false;
@@ -36,6 +36,7 @@ public class MyWallpaperService extends WallpaperService {
 		private int currentImageNumber = 0;
 		private static final String TAG = "MyWallpaperService";
 		private float actualDistanceX;
+		private Bitmap currentBitmap;
 
 		private final Runnable drawRunner = new Runnable() {
 
@@ -172,32 +173,33 @@ public class MyWallpaperService extends WallpaperService {
 		// Surface view requires that all elements are drawn completely
 		private void changeBackground(Canvas canvas) {
 			if (changeBackground) {
-				Bitmap scaledBitmap;
-				boolean resized = false;
+				Bitmap scaledBitmap = null;
+				if(currentBitmap != null) {
+					currentBitmap.recycle();
+				}
 				if (imageList.size() != 0 && currentImageNumber != -1) {
 					getNextImageNumber();
 					String imagePath = imageList.get(currentImageNumber)
 							.getPath();
+					try {
 					scaledBitmap = MultiBackgroundUtilities
 							.scaleDownImageAndDecode(imagePath, screenX,
 									screenY);
+					} catch (OutOfMemoryError oom) {
+						Log.d(TAG, "OutOfMemory Exception occurred");
+					}
 					if (scaledBitmap == null) {
 						scaledBitmap = MultiBackgroundUtilities
 								.scaleDownImageAndDecode(getResources(),
 										R.drawable.default_background, screenX,
 										screenY);
-					} else {
-						scaledBitmap = MultiBackgroundUtilities
-								.resizeBitmapAndCorrectBitmapOrientation(
-										imagePath, scaledBitmap, screenX,
-										screenY);
-						resized = true;
 					}
 				} else {
 					/*
 					 * Show some default background if there is some problem in
 					 * opening database
 					 */
+					Log.i(TAG, "CurrentImageNumber : " + currentImageNumber);
 					scaledBitmap = MultiBackgroundUtilities
 							.scaleDownImageAndDecode(getResources(),
 									R.drawable.default_background, screenX,
@@ -207,14 +209,12 @@ public class MyWallpaperService extends WallpaperService {
 				changeBackground = false;
 				canvas.drawColor(0, android.graphics.PorterDuff.Mode.CLEAR);
 				if (scaledBitmap != null) {
-					if (resized) {
-						canvas.drawBitmap(scaledBitmap, 0, 0, null);
-						resized = false;
-					} else {
-						MultiBackgroundUtilities.resizeBitmap(scaledBitmap,
-								screenX, screenY);
-						canvas.drawBitmap(scaledBitmap, 0, 0, null);
-					}
+//					Bitmap fullScreenBitmap = Bitmap.createScaledBitmap(scaledBitmap, screenX, screenY, true);
+//					if(fullScreenBitmap != scaledBitmap) {
+//						scaledBitmap.recycle();
+//					}
+					canvas.drawBitmap(scaledBitmap, 0, 0, null);
+					currentBitmap = scaledBitmap;
 				}
 			}
 		}
@@ -227,9 +227,9 @@ public class MyWallpaperService extends WallpaperService {
 			if (imageList.size() == 0) {
 				currentImageNumber = -1;
 			} else {
-				int delta = 1;
+				int delta = -1;
 				if (actualDistanceX < 0) {
-					delta = -1;
+					delta = 1;
 				}
 				int newImageNumber = currentImageNumber + delta;
 				if (newImageNumber < 0) {

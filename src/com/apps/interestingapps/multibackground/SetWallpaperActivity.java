@@ -38,6 +38,7 @@ public class SetWallpaperActivity extends Activity {
 
 	private DatabaseHelper databaseHelper;
 	private List<ImageView> imageViewList;
+	private List<MultiBackgroundImage> mbiList;
 	private LinearLayout linearLayoutInsideHsv;
 	private static final String TAG = "SetWallpaperActivity";
 	private ImageView plusImageView;
@@ -45,7 +46,7 @@ public class SetWallpaperActivity extends Activity {
 	private ImageView deleteImageView;
 	private int screenWidth, screenHeight, quarterScreenWidth,
 			quarterScreenHeight;
-	
+
 	private AdView adview;
 
 	@SuppressWarnings("deprecation")
@@ -62,12 +63,13 @@ public class SetWallpaperActivity extends Activity {
 		databaseHelper = DatabaseHelper.initializeDatabase(this);
 		initializeStaticViews();
 		imageViewList = new ArrayList<ImageView>();
+		mbiList = new ArrayList<MultiBackgroundImage>();
 		getAllImages();
-		
+
 		adview = (AdView) findViewById(R.id.adView);
 		AdRequest re = new AdRequest();
-//		re.addTestDevice(AdRequest.TEST_EMULATOR);
-//		re.addTestDevice("134A570CAEC830760EF3144B1EED15A5");
+		// re.addTestDevice(AdRequest.TEST_EMULATOR);
+		// re.addTestDevice("134A570CAEC830760EF3144B1EED15A5");
 		adview.loadAd(re);
 	}
 
@@ -96,8 +98,7 @@ public class SetWallpaperActivity extends Activity {
 		/*
 		 * Get all the images and load them in the activity
 		 */
-		linearLayoutInsideHsv.removeAllViews();
-		imageViewList.clear();
+		removeAllImageViews();
 		List<MultiBackgroundImage> allImages = databaseHelper.getAllImages();
 		for (MultiBackgroundImage image : allImages) {
 			addImageToHorizontalLayout(image);
@@ -140,7 +141,7 @@ public class SetWallpaperActivity extends Activity {
 	/**
 	 * Updates the list of current Images in database and adds the provided
 	 * image to the Horizontal Scroll View at the end
-	 *
+	 * 
 	 * @param imagePath
 	 */
 	private void addImageToHorizontalLayout(MultiBackgroundImage mbi) {
@@ -158,29 +159,20 @@ public class SetWallpaperActivity extends Activity {
 		iv.setOnDragListener(new MbiDragListener(this));
 		iv.setOnLongClickListener(new MbiLongClickListener(this));
 
-		linearLayoutInsideHsv.addView(iv);
-		imageViewList.add(iv);
+		addImageView(mbi, iv);
 	}
 
 	private Bitmap generateImageThumbnail(String imagePath,
 			int width,
 			int height) {
-		Bitmap scaledBitmap = MultiBackgroundUtilities.scaleDownImageAndDecode(
+		Bitmap scaledBitmap = null ;
+		try {
+			scaledBitmap = MultiBackgroundUtilities.scaleDownImageAndDecode(
 				imagePath, width, height);
-		if(scaledBitmap == null) {
-			return scaledBitmap;
+		} catch(OutOfMemoryError oom) {
+			Toast.makeText(this, "Image is very large to load. ", Toast.LENGTH_SHORT).show();
 		}
-		int desiredWidth = scaledBitmap.getWidth() >= quarterScreenWidth ? quarterScreenWidth
-				: scaledBitmap.getWidth();
-		int desiredHeight = scaledBitmap.getHeight() >= quarterScreenHeight ? quarterScreenHeight
-				: scaledBitmap.getHeight();
-		Bitmap rotatedBitmap = MultiBackgroundUtilities
-				.resizeBitmapAndCorrectBitmapOrientation(imagePath, scaledBitmap, desiredWidth,
-						desiredHeight);
-		if(rotatedBitmap != scaledBitmap) {
-			scaledBitmap.recycle();
-		}
-		return rotatedBitmap;
+		return scaledBitmap;
 	}
 
 	private Bitmap
@@ -189,10 +181,10 @@ public class SetWallpaperActivity extends Activity {
 				getResources(), resourceId, width, height);
 		return scaledBitmap;
 	}
-
+	
 	/**
 	 * Method to add an image to the database and current list of Image Views
-	 *
+	 * 
 	 * @param imageUri
 	 */
 	public void addNewImage(Uri imageUri) {
@@ -201,11 +193,9 @@ public class SetWallpaperActivity extends Activity {
 	}
 
 	public void addNewImage(String imagePath) {
-		int nextImageNumber = imageViewList.size();
 		MultiBackgroundImage newMbi = null;
 		try {
-			newMbi = databaseHelper.addMultiBackgroundImage(nextImageNumber,
-					imagePath);
+			newMbi = databaseHelper.addMultiBackgroundImage(imagePath);
 			if (newMbi == null) {
 				Toast.makeText(getApplicationContext(),
 						"Could not add a new Image.", Toast.LENGTH_SHORT)
@@ -223,31 +213,58 @@ public class SetWallpaperActivity extends Activity {
 	public void updateImagePosition(ImageView sourceView, ImageView targetView) {
 		int[] sourceTargetViewIndices = getIndexOfDragMovement(sourceView,
 				targetView);
-		if (sourceTargetViewIndices[0] == -1
-				|| sourceTargetViewIndices[1] == -1) {
+		int sourceIndex = sourceTargetViewIndices[0];
+		int targetIndex = sourceTargetViewIndices[1];
+
+		if (sourceIndex < 0 || targetIndex < 0) {
 			Log.w(TAG,
 					"Couldn't find the desired views. Drag is not a valid drag.");
 			return;
 		}
 
-		if (sourceTargetViewIndices[0] == sourceTargetViewIndices[1]) {
+		if (sourceIndex == targetIndex) {
 			Log.w(TAG,
 					"The image and source views the are same. So no need to update any positions");
 			return;
 		}
 
-		if (databaseHelper
-				.updateRowWithinImageNumberRange(sourceTargetViewIndices)) {
-			getAllImages();
-		}
+		MultiBackgroundImage sourceMbi = mbiList.get(sourceIndex);
+		MultiBackgroundImage targetMbi = mbiList.get(targetIndex);
+		boolean isReorderResultSuccessful = databaseHelper.reorderImages(
+				sourceMbi, targetMbi, sourceTargetViewIndices);
+		if (isReorderResultSuccessful) {
+			linearLayoutInsideHsv.removeView(sourceView);
+			linearLayoutInsideHsv.addView(sourceView, targetIndex);
+			imageViewList.remove(sourceIndex);
+			imageViewList.add(targetIndex, sourceView);
 
+			if (sourceIndex != 0) {
+				mbiList.get(sourceIndex - 1).setNextImageNumber(
+						sourceMbi.getNextImageNumber());
+			}
+			if (sourceIndex < targetIndex) {
+				sourceMbi.setNextImageNumber(targetMbi.getNextImageNumber());
+				targetMbi.setNextImageNumber(sourceMbi.get_id());
+
+				mbiList.add(targetIndex, sourceMbi);
+				mbiList.remove(sourceIndex);				
+			} else {
+				sourceMbi.setNextImageNumber(targetMbi.getNextImageNumber());
+				if(targetIndex != 0) {
+					mbiList.get(targetIndex -1).setNextImageNumber(sourceMbi.get_id());
+				}
+				mbiList.remove(sourceIndex);
+				mbiList.add(targetIndex, sourceMbi);
+			}
+
+		}
 	}
 
 	/**
 	 * Method to find the indices where the drag started and where it ended in
 	 * the imageViewList. We will have to update the image numbers of all the
 	 * images in between
-	 *
+	 * 
 	 * @param sourceView
 	 *            The image that is being dragged
 	 * @param targetView
@@ -294,12 +311,48 @@ public class SetWallpaperActivity extends Activity {
 
 	public void deleteImage(ImageView imageToBeDeleted) {
 		int indexOfImage = getIndexOfImageView(imageToBeDeleted);
-		if (!databaseHelper.deleteMultibackgroundImage(indexOfImage)) {
+		MultiBackgroundImage mbiToBeDeleted = mbiList.get(indexOfImage);
+		if (!databaseHelper.deleteMultibackgroundImage(mbiToBeDeleted)) {
 			Toast.makeText(getApplicationContext(),
 					"Unable to delete the desired image", Toast.LENGTH_SHORT)
 					.show();
 		} else {
-			getAllImages();
+			removeImageView(imageToBeDeleted, indexOfImage);
 		}
+	}
+
+	private void addImageView(MultiBackgroundImage mbi, ImageView imageView) {
+		linearLayoutInsideHsv.addView(imageView);
+		imageViewList.add(imageView);
+		if(mbiList.size() > 0) {
+			mbiList.get(mbiList.size() -1).setNextImageNumber(mbi.get_id());
+		}
+		mbiList.add(mbi);
+	}
+
+	private void removeImageView(ImageView imageToBeDeleted, int indexOfImage) {
+		linearLayoutInsideHsv.removeView(imageToBeDeleted);
+		imageViewList.remove(indexOfImage);
+		if (indexOfImage > 0) {
+			/*
+			 * Update the nextImageNumber of the previous object to point to the
+			 * nextImage pointed by imageToBeDeleted's nextImageNumber. If its
+			 * the first element, then no need to update the nextImage number
+			 */
+			MultiBackgroundImage mbiToBeDeleted = mbiList.get(indexOfImage);
+			mbiList.get(indexOfImage - 1).setNextImageNumber(
+					mbiToBeDeleted.getNextImageNumber());
+		}
+		mbiList.remove(indexOfImage);
+	}
+
+	private void removeAllImageViews() {
+		linearLayoutInsideHsv.removeAllViews();
+		imageViewList.clear();
+		mbiList.clear();
+	}
+
+	public HorizontalScrollView getHorizontalScrollView() {
+		return hsv;
 	}
 }

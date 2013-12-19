@@ -1,45 +1,58 @@
 package com.apps.interestingapps.multibackground.common;
 
 import java.io.File;
-import java.io.FileOutputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.media.ExifInterface;
 import android.util.Log;
 
 public class MultiBackgroundUtilities {
 
-	// private static final String TAG = "MultiBackgroundUtilities";
+	private static final String TAG = "MultiBackgroundUtilities";
 
 	public static Bitmap scaleDownImageAndDecode(String imagePath,
-			int requiredWidth,
-			int requiredHeight) {
-		Bitmap scaledImageBitmap = null;
+			int maxWidth,
+			int maxHeight) throws OutOfMemoryError {
+		Bitmap compressedBitmap = null;
+		 // First decode with inJustDecodeBounds=true to check dimensions
+		 final BitmapFactory.Options options = new BitmapFactory.Options();
+		 options.inJustDecodeBounds = true;
+		 BitmapFactory.decodeFile(imagePath, options);
+		
+		 // Calculate inSampleSize
+		 options.inSampleSize = calculateInSampleSize(options, maxWidth,
+		 maxHeight);
+		
+		 // Decode bitmap with inSampleSize set
+		 options.inJustDecodeBounds = false;
+		 int retry = 0;
+		 do {
+			 try {
+				 compressedBitmap = BitmapFactory.decodeFile(imagePath, options);
+			 } catch (OutOfMemoryError oom) {
+				 options.inSampleSize *= 2;
+				Log.i(TAG, "Increased the inSample size by 2 times to: "
+						+ options.inSampleSize);
+				 retry++;		 
+			 }
+		 } while(compressedBitmap == null && retry < 5);
 
-		// First decode with inJustDecodeBounds=true to check dimensions
-		final BitmapFactory.Options options = new BitmapFactory.Options();
-		options.inJustDecodeBounds = true;
-		BitmapFactory.decodeFile(imagePath, options);
-
-		// Calculate inSampleSize
-		options.inSampleSize = calculateInSampleSize(options, requiredWidth,
-				requiredHeight);
-
-		// Decode bitmap with inSampleSize set
-		options.inJustDecodeBounds = false;
-		scaledImageBitmap = BitmapFactory.decodeFile(imagePath, options);
-		return scaledImageBitmap;
+		Bitmap resizedAndRoatedBitmap = resizeBitmapAndCorrectBitmapOrientation(
+				imagePath, compressedBitmap, maxWidth, maxHeight);
+		return resizedAndRoatedBitmap;
 	}
 
 	public static Bitmap scaleDownImageAndDecode(Resources res,
 			int resourceId,
-			int requiredWidth,
-			int requiredHeight) {
-		Bitmap scaledImageBitmap = null;
+			int maxWidth,
+			int maxHeight) {
+		Bitmap compressedBitmap = null;
 
 		// First decode with inJustDecodeBounds=true to check dimensions
 		final BitmapFactory.Options options = new BitmapFactory.Options();
@@ -47,14 +60,19 @@ public class MultiBackgroundUtilities {
 		BitmapFactory.decodeResource(res, resourceId, options);
 
 		// Calculate inSampleSize
-		options.inSampleSize = calculateInSampleSize(options, requiredWidth,
-				requiredHeight);
+		options.inSampleSize = calculateInSampleSize(options, maxWidth,
+				maxHeight);
 
 		// Decode bitmap with inSampleSize set
 		options.inJustDecodeBounds = false;
-		scaledImageBitmap = BitmapFactory.decodeResource(res, resourceId,
+		compressedBitmap = BitmapFactory.decodeResource(res, resourceId,
 				options);
-		return scaledImageBitmap;
+
+		Bitmap resizedBitmap = Bitmap.createScaledBitmap(compressedBitmap, maxWidth, maxHeight, true);
+		if(resizedBitmap != compressedBitmap) {
+			compressedBitmap.recycle();
+		}
+		return resizedBitmap;
 	}
 
 	public static int calculateInSampleSize(BitmapFactory.Options options,
@@ -67,33 +85,43 @@ public class MultiBackgroundUtilities {
 
 		if (height > reqHeight || width > reqWidth) {
 
-			final int halfHeight = height / 2;
-			final int halfWidth = width / 2;
-
 			// Calculate the largest inSampleSize value that is a power of 2 and
 			// keeps both
 			// height and width larger than the requested height and width.
-			while ((halfHeight / inSampleSize) > reqHeight
-					&& (halfWidth / inSampleSize) > reqWidth) {
+			while ((height / inSampleSize) > reqHeight
+					&& (width / inSampleSize) > reqWidth) {
 				inSampleSize *= 2;
 			}
 		}
-
 		return inSampleSize;
 	}
 
-	public static Bitmap
+	/**
+	 * This method recycles the original bitmap. So, after this method is used, the calling method cannot use original bitmap anymore. This is to prevent OutOfMemory errors
+	 * @param pathToImage
+	 * @param originalBitmap
+	 * @param maxWidth
+	 * @param maxHeight
+	 * @return
+	 */
+	private static Bitmap
 			resizeBitmapAndCorrectBitmapOrientation(String pathToImage,
 					Bitmap originalBitmap,
-					int desiredWidth,
-					int desiredHeight) {
-		// Matrix matrix = getResizeBitmapMatrix(originalBitmap, desiredWidth,
-		// desiredHeight);
+					int maxWidth,
+					int maxHeight) {
+		Matrix rotationMatrix = new Matrix();
 		int rotationRequired = getRequiredimageRotation(pathToImage);
-		Matrix matrix = new Matrix();
-		matrix.postRotate(rotationRequired);
-		return Bitmap.createBitmap(originalBitmap, 0, 0, desiredWidth,
-				desiredHeight, matrix, true);
+		rotationMatrix.postRotate(rotationRequired);
+		Bitmap roatedBitmap = Bitmap.createBitmap(originalBitmap, 0, 0, originalBitmap.getWidth(),
+						originalBitmap.getHeight(), rotationMatrix, true);
+		if (roatedBitmap != originalBitmap) {
+			originalBitmap.recycle();
+		}
+		Bitmap scaledBitmap = Bitmap.createScaledBitmap(roatedBitmap, maxWidth, maxHeight, true);
+		if(scaledBitmap != roatedBitmap) {
+			roatedBitmap.recycle();
+		}
+		return scaledBitmap; 
 	}
 
 	public static int getRequiredimageRotation(String pathToImage) {
@@ -117,49 +145,36 @@ public class MultiBackgroundUtilities {
 				rotate = 90;
 				break;
 			}
-
-			Log.i("RotateImage", "Exif orientation: " + orientation);
-			Log.i("RotateImage", "Rotate value: " + rotate);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		return rotate;
 	}
 
-	public static Matrix getResizeBitmapMatrix(Bitmap source,
-			int newWidth,
-			int newHeight) {
-		int sourceWidth = source.getWidth();
-		int sourceHeight = source.getHeight();
-		float xScale = (float) newWidth / sourceWidth;
-		float yScale = (float) newHeight / sourceHeight;
-		float scale = Math.max(xScale, yScale);
-
-		// get the resulting size after scaling
-		float scaledWidth = scale * sourceWidth;
-		float scaledHeight = scale * sourceHeight;
-
-		// figure out where we should translate to
-		float dx = (newWidth - scaledWidth) / 2;
-		float dy = (newHeight - scaledHeight) / 2;
-
-		Matrix matrix = new Matrix();
-		matrix.postScale(scale, scale);
-		matrix.postTranslate(dx, dy);
-		return matrix;
-	}
-
 	/**
-	 * Resizes the given Bitmap to the give height and width by keeping the
-	 * aspect ratio same
-	 * 
-	 * @param source
-	 * @param newWidth
-	 * @param newHeight
+	 * Creates a list of images in the order from first image(The one whose _id
+	 * will not be in any other's nextImageNumber) to the last image (the one
+	 * whose nextImageNumber is
+	 * MultiBackgroundConstants.DEFAULT_NEXT_IMAGE_NUMBER
+	 *
+	 * @param nextImageNumberToMbiMap
+	 * @return
 	 */
-	public static void resizeBitmap(Bitmap source, int newWidth, int newHeight) {
-		Matrix matrix = getResizeBitmapMatrix(source, newWidth, newHeight);
-		Canvas canvas = new Canvas(source);
-		canvas.drawBitmap(source, matrix, null);
+	public static List<MultiBackgroundImage>
+			getImagesFromMap(Map<Integer, MultiBackgroundImage> nextImageNumberToMbiMap) {
+		ArrayList<MultiBackgroundImage> imageListFromEnd = new ArrayList<MultiBackgroundImage>();
+		MultiBackgroundImage latestMbi = nextImageNumberToMbiMap
+				.get(MultiBackgroundConstants.DEFAULT_NEXT_IMAGE_NUMBER);
+		/*
+		 * Get the images in reverse order from last to first. The frist image
+		 * will be the one whose ID will not be stored as nextImageNumber in any
+		 * of the rows
+		 */
+		while (latestMbi != null) {
+			imageListFromEnd.add(latestMbi);
+			latestMbi = nextImageNumberToMbiMap.get((int) latestMbi.get_id());
+		}
+		Log.i(TAG, "Total size of the list is: " + imageListFromEnd.size());
+		return CommonUtilities.reverseList(imageListFromEnd);
 	}
 }

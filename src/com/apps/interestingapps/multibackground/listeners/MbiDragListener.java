@@ -14,8 +14,15 @@ import com.apps.interestingapps.multibackground.SetWallpaperActivity;
  * events as the target view
  */
 public class MbiDragListener implements OnDragListener {
-	
+
 	private SetWallpaperActivity setWallpaperActivity;
+	private static final int THRESHOLD = 50;
+	private static long previousAutoScrollTime = 0;
+	/*
+	 * Time in milliseconds
+	 */
+	private static final long TIME_BETWEEN_AUTO_SCROLLS = 500;
+//	private static final String TAG = "MbiDragListener";
 
 	public MbiDragListener(SetWallpaperActivity setWallpaperActivity) {
 		this.setWallpaperActivity = setWallpaperActivity;
@@ -26,71 +33,53 @@ public class MbiDragListener implements OnDragListener {
 		int action = event.getAction();
 		ImageView targetView = (ImageView) view;
 		ImageView sourceView = (ImageView) event.getLocalState();
-		
+
 		Display display = setWallpaperActivity.getWindowManager()
 				.getDefaultDisplay();
 		int screenWidth = display.getWidth();
 		int halfScreenWidth = screenWidth / 2;
-		
+		int hsvScrollX = setWallpaperActivity.getHorizontalScrollView()
+				.getScrollX();
 		switch (action) {
 		/*
 		 * For now implementing change in positions of views once the view is
 		 * dropped at the desired positions.
-		 * 
+		 *
 		 * TODO: Update the code so that there is a live update of position of
 		 * views as the source image is dragged through them
-		 * 
+		 *
 		 * TODO: Update the image number column with the new index of images
 		 */
 		case DragEvent.ACTION_DRAG_STARTED:
 			// do nothing
 			break;
 		case DragEvent.ACTION_DRAG_LOCATION:
-			int dragX = (int)event.getX();
-			int targetViewXCoverage = (int)(targetView.getX() + targetView.getWidth());
-			int targetViewXFromLeft = targetViewXCoverage % screenWidth;
-//			int currentDragX = targetViewXCoverage 
-			int currentX = targetViewXFromLeft + dragX;
-			
+			int dragX = (int) event.getX();
+			int exactDragPosition = (int) (targetView.getX() + dragX);
+			int currentPositionOnScreen = Math.abs(exactDragPosition
+					- hsvScrollX);
+
 			int diffX = 0;
-			
-			if(currentX < sourceView.getWidth()) {
+
+			if (currentPositionOnScreen < THRESHOLD) {
 				diffX = halfScreenWidth;
-			} else if(currentX + sourceView.getWidth() > screenWidth ){
-				diffX = -halfScreenWidth;				
+			} else if (currentPositionOnScreen > (screenWidth - THRESHOLD)) {
+				diffX = -halfScreenWidth;
 			}
-			setWallpaperActivity.scrollHorizontalScrollView(-1 * diffX);
+			long currentTimeMillis = System.currentTimeMillis();
+			if (diffX != 0) {
+				if ((currentTimeMillis - previousAutoScrollTime) > TIME_BETWEEN_AUTO_SCROLLS) {
+					setWallpaperActivity.scrollHorizontalScrollView(-1 * diffX);
+					previousAutoScrollTime = System.currentTimeMillis();
+				} 
+			}
 			break;
 		case DragEvent.ACTION_DRAG_ENTERED:
-//			float sourceViewX = sourceView.getX();
-//			float targetViewX = targetView.getX();
-//
-//			int diffX = (int) (sourceViewX - targetViewX);
-//			
-//			int targetViewXFromLeftCorner = (int) targetViewX % screenWidth;
-//			/*
-//			 * If the sourceView is at the left end of the screen, then scroll
-//			 * the list a little left, else scroll the list a little right.
-//			 */
-//			if (targetViewXFromLeftCorner < halfScreenWidth) {
-//				diffX = halfScreenWidth;
-//			} else if (targetViewXFromLeftCorner + targetView.getWidth() > screenWidth) {
-//				diffX = -halfScreenWidth;
-//			} else {
-////				Log.d(TAG, "TargetView X: " + targetViewX);
-//			}
-//
-//			/*
-//			 * Scroll the view in the opposite direction of where the drag is
-//			 * being made
-//			 */
-//			setWallpaperActivity.scrollHorizontalScrollView(-1 * diffX);
 			break;
 		case DragEvent.ACTION_DRAG_EXITED:
 
 			break;
 		case DragEvent.ACTION_DROP:
-
 			setWallpaperActivity.updateImagePosition(sourceView, targetView);
 			break;
 		case DragEvent.ACTION_DRAG_ENDED:
