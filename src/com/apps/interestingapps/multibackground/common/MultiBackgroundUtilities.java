@@ -35,6 +35,7 @@ public class MultiBackgroundUtilities {
 		 do {
 			 try {
 				 compressedBitmap = BitmapFactory.decodeFile(imagePath, options);
+				 retry = 5;
 			 } catch (OutOfMemoryError oom) {
 				 options.inSampleSize *= 2;
 				Log.i(TAG, "Increased the inSample size by 2 times to: "
@@ -65,8 +66,20 @@ public class MultiBackgroundUtilities {
 
 		// Decode bitmap with inSampleSize set
 		options.inJustDecodeBounds = false;
-		compressedBitmap = BitmapFactory.decodeResource(res, resourceId,
-				options);
+		int retry = 0;
+		do {
+			 try {
+				 compressedBitmap = BitmapFactory.decodeResource(res, resourceId,
+							options);
+				 retry = 5;
+			 } catch (OutOfMemoryError oom) {
+				 options.inSampleSize *= 2;
+				Log.i(TAG, "Increased the inSample size by 2 times to: "
+						+ options.inSampleSize);
+				 retry++;		 
+			 }
+		 } while(compressedBitmap == null && retry < 5);
+		
 
 		Bitmap resizedBitmap = Bitmap.createScaledBitmap(compressedBitmap, maxWidth, maxHeight, true);
 		if(resizedBitmap != compressedBitmap) {

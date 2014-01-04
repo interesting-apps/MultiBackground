@@ -10,7 +10,6 @@ public class MultiBackgroundImage implements Comparable<MultiBackgroundImage> {
 	private int _id;
 	private int nextImageNumber;
 	private String path;
-	private int imageViewIndexNumber;
 
 	public MultiBackgroundImage(int _id, int imageNumber, String path) {
 		super();
@@ -43,14 +42,6 @@ public class MultiBackgroundImage implements Comparable<MultiBackgroundImage> {
 		this.path = path;
 	}
 	
-	public int getImageViewIndexNumber() {
-		return imageViewIndexNumber;
-	}
-
-	public void setImageViewIndexNumber(int imageViewNumber) {
-		this.imageViewIndexNumber = imageViewNumber;
-	}
-
 	/**
 	 * An image which has image number less than some other image is considered
 	 * to be an image less than the other image

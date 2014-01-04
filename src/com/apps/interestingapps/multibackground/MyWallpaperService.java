@@ -125,15 +125,15 @@ public class MyWallpaperService extends WallpaperService {
 							|| threshold >= THRESHOLD_FOR_SCREEN_CHANGE) {
 						/*
 						 * TODO: take into consideration :
-						 *
+						 * 
 						 * 1. long press can be done before/after down/up events
 						 * --> Checked if distance is greater than half the
 						 * screen size, it will change the home screen
-						 *
+						 * 
 						 * 2. Current screen can be the last screen in the
 						 * direction of movement --> Currently couldn't find a
 						 * better way, so changing the feature of the app.
-						 *
+						 * 
 						 * 3. Multitouch events
 						 */
 						changeBackground = true;
@@ -174,7 +174,11 @@ public class MyWallpaperService extends WallpaperService {
 		private void changeBackground(Canvas canvas) {
 			if (changeBackground) {
 				Bitmap scaledBitmap = null;
-				if(currentBitmap != null) {
+				/*
+				 * TODO: Try to optimize this, so that if recycling is not
+				 * required, we can skip this
+				 */
+				if (currentBitmap != null) {
 					currentBitmap.recycle();
 				}
 				if (imageList.size() != 0 && currentImageNumber != -1) {
@@ -182,11 +186,13 @@ public class MyWallpaperService extends WallpaperService {
 					String imagePath = imageList.get(currentImageNumber)
 							.getPath();
 					try {
-					scaledBitmap = MultiBackgroundUtilities
-							.scaleDownImageAndDecode(imagePath, screenX,
-									screenY);
-					} catch (OutOfMemoryError oom) {
-						Log.d(TAG, "OutOfMemory Exception occurred");
+						scaledBitmap = MultiBackgroundUtilities
+								.scaleDownImageAndDecode(imagePath, screenX,
+										screenY);
+					} catch (Exception e) {
+						Log.d(TAG,
+								"Unable to load image for the given path due to: "
+										+ e);
 					}
 					if (scaledBitmap == null) {
 						scaledBitmap = MultiBackgroundUtilities
@@ -209,10 +215,6 @@ public class MyWallpaperService extends WallpaperService {
 				changeBackground = false;
 				canvas.drawColor(0, android.graphics.PorterDuff.Mode.CLEAR);
 				if (scaledBitmap != null) {
-//					Bitmap fullScreenBitmap = Bitmap.createScaledBitmap(scaledBitmap, screenX, screenY, true);
-//					if(fullScreenBitmap != scaledBitmap) {
-//						scaledBitmap.recycle();
-//					}
 					canvas.drawBitmap(scaledBitmap, 0, 0, null);
 					currentBitmap = scaledBitmap;
 				}

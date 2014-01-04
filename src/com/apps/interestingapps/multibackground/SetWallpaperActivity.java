@@ -65,11 +65,12 @@ public class SetWallpaperActivity extends Activity {
 		imageViewList = new ArrayList<ImageView>();
 		mbiList = new ArrayList<MultiBackgroundImage>();
 		getAllImages();
+		
+		// re.addTestDevice(AdRequest.TEST_EMULATOR);
+				// re.addTestDevice("134A570CAEC830760EF3144B1EED15A5");
 
 		adview = (AdView) findViewById(R.id.adView);
 		AdRequest re = new AdRequest();
-		// re.addTestDevice(AdRequest.TEST_EMULATOR);
-		// re.addTestDevice("134A570CAEC830760EF3144B1EED15A5");
 		adview.loadAd(re);
 	}
 
@@ -147,8 +148,14 @@ public class SetWallpaperActivity extends Activity {
 	private void addImageToHorizontalLayout(MultiBackgroundImage mbi) {
 		ImageView iv = new ImageView(getApplicationContext());
 		iv.setPadding(5, 5, 5, 5);
-		Bitmap bitmap = generateImageThumbnail(mbi.getPath(),
-				quarterScreenWidth, quarterScreenHeight);
+		Bitmap bitmap = null;
+
+		try {
+			bitmap = generateImageThumbnail(mbi.getPath(), quarterScreenWidth,
+					quarterScreenHeight);
+		} catch (Exception e) {
+			Log.d(TAG, "Unable to create bitmap for the given path due to " + e);
+		}
 		if (bitmap == null) {
 			Log.w(TAG,
 					"Unable to load image from the given path. Loading the default image:");
@@ -165,12 +172,13 @@ public class SetWallpaperActivity extends Activity {
 	private Bitmap generateImageThumbnail(String imagePath,
 			int width,
 			int height) {
-		Bitmap scaledBitmap = null ;
+		Bitmap scaledBitmap = null;
 		try {
 			scaledBitmap = MultiBackgroundUtilities.scaleDownImageAndDecode(
-				imagePath, width, height);
-		} catch(OutOfMemoryError oom) {
-			Toast.makeText(this, "Image is very large to load. ", Toast.LENGTH_SHORT).show();
+					imagePath, width, height);
+		} catch (OutOfMemoryError oom) {
+			Toast.makeText(this, "Image is very large to load. ",
+					Toast.LENGTH_SHORT).show();
 		}
 		return scaledBitmap;
 	}
@@ -181,7 +189,7 @@ public class SetWallpaperActivity extends Activity {
 				getResources(), resourceId, width, height);
 		return scaledBitmap;
 	}
-	
+
 	/**
 	 * Method to add an image to the database and current list of Image Views
 	 * 
@@ -247,11 +255,12 @@ public class SetWallpaperActivity extends Activity {
 				targetMbi.setNextImageNumber(sourceMbi.get_id());
 
 				mbiList.add(targetIndex, sourceMbi);
-				mbiList.remove(sourceIndex);				
+				mbiList.remove(sourceIndex);
 			} else {
 				sourceMbi.setNextImageNumber(targetMbi.getNextImageNumber());
-				if(targetIndex != 0) {
-					mbiList.get(targetIndex -1).setNextImageNumber(sourceMbi.get_id());
+				if (targetIndex != 0) {
+					mbiList.get(targetIndex - 1).setNextImageNumber(
+							sourceMbi.get_id());
 				}
 				mbiList.remove(sourceIndex);
 				mbiList.add(targetIndex, sourceMbi);
@@ -324,8 +333,8 @@ public class SetWallpaperActivity extends Activity {
 	private void addImageView(MultiBackgroundImage mbi, ImageView imageView) {
 		linearLayoutInsideHsv.addView(imageView);
 		imageViewList.add(imageView);
-		if(mbiList.size() > 0) {
-			mbiList.get(mbiList.size() -1).setNextImageNumber(mbi.get_id());
+		if (mbiList.size() > 0) {
+			mbiList.get(mbiList.size() - 1).setNextImageNumber(mbi.get_id());
 		}
 		mbiList.add(mbi);
 	}
