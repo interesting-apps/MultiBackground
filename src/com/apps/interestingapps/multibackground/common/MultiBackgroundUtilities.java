@@ -12,40 +12,44 @@ import android.graphics.Matrix;
 import android.media.ExifInterface;
 import android.util.Log;
 
+import com.apps.interestingapps.multibackground.common.MultiBackgroundImage.ImageSize;
+
 public class MultiBackgroundUtilities {
 
 	private static final String TAG = "MultiBackgroundUtilities";
 
 	public static Bitmap scaleDownImageAndDecode(String imagePath,
 			int maxWidth,
-			int maxHeight) throws OutOfMemoryError {
+			int maxHeight,
+			ImageSize imageSize) throws OutOfMemoryError {
 		Bitmap compressedBitmap = null;
-		 // First decode with inJustDecodeBounds=true to check dimensions
-		 final BitmapFactory.Options options = new BitmapFactory.Options();
-		 options.inJustDecodeBounds = true;
-		 BitmapFactory.decodeFile(imagePath, options);
-		
-		 // Calculate inSampleSize
-		 options.inSampleSize = calculateInSampleSize(options, maxWidth,
-		 maxHeight);
-		
-		 // Decode bitmap with inSampleSize set
-		 options.inJustDecodeBounds = false;
-		 int retry = 0;
-		 do {
-			 try {
-				 compressedBitmap = BitmapFactory.decodeFile(imagePath, options);
-				 retry = 5;
-			 } catch (OutOfMemoryError oom) {
-				 options.inSampleSize *= 2;
+		// First decode with inJustDecodeBounds=true to check dimensions
+		final BitmapFactory.Options options = new BitmapFactory.Options();
+		options.inJustDecodeBounds = true;
+		BitmapFactory.decodeFile(imagePath, options);
+
+		// Calculate inSampleSize
+		options.inSampleSize = calculateInSampleSize(options, maxWidth,
+				maxHeight);
+
+		// Decode bitmap with inSampleSize set
+		options.inJustDecodeBounds = false;
+		int retry = 0;
+		do {
+			try {
+				compressedBitmap = BitmapFactory.decodeFile(imagePath, options);
+				retry = 5;
+			} catch (OutOfMemoryError oom) {
+				options.inSampleSize *= 2;
 				Log.i(TAG, "Increased the inSample size by 2 times to: "
 						+ options.inSampleSize);
-				 retry++;		 
-			 }
-		 } while(compressedBitmap == null && retry < 5);
+				retry++;
+			}
+		} while (compressedBitmap == null && retry < 5);
 
 		Bitmap resizedAndRoatedBitmap = resizeBitmapAndCorrectBitmapOrientation(
-				imagePath, compressedBitmap, maxWidth, maxHeight);
+				imagePath, compressedBitmap, options, maxWidth, maxHeight,
+				imageSize);
 		return resizedAndRoatedBitmap;
 	}
 
@@ -68,21 +72,21 @@ public class MultiBackgroundUtilities {
 		options.inJustDecodeBounds = false;
 		int retry = 0;
 		do {
-			 try {
-				 compressedBitmap = BitmapFactory.decodeResource(res, resourceId,
-							options);
-				 retry = 5;
-			 } catch (OutOfMemoryError oom) {
-				 options.inSampleSize *= 2;
+			try {
+				compressedBitmap = BitmapFactory.decodeResource(res,
+						resourceId, options);
+				retry = 5;
+			} catch (OutOfMemoryError oom) {
+				options.inSampleSize *= 2;
 				Log.i(TAG, "Increased the inSample size by 2 times to: "
 						+ options.inSampleSize);
-				 retry++;		 
-			 }
-		 } while(compressedBitmap == null && retry < 5);
-		
+				retry++;
+			}
+		} while (compressedBitmap == null && retry < 5);
 
-		Bitmap resizedBitmap = Bitmap.createScaledBitmap(compressedBitmap, maxWidth, maxHeight, true);
-		if(resizedBitmap != compressedBitmap) {
+		Bitmap resizedBitmap = Bitmap.createScaledBitmap(compressedBitmap,
+				maxWidth, maxHeight, true);
+		if (resizedBitmap != compressedBitmap) {
 			compressedBitmap.recycle();
 		}
 		return resizedBitmap;
@@ -110,7 +114,10 @@ public class MultiBackgroundUtilities {
 	}
 
 	/**
-	 * This method recycles the original bitmap. So, after this method is used, the calling method cannot use original bitmap anymore. This is to prevent OutOfMemory errors
+	 * This method recycles the original bitmap. So, after this method is used,
+	 * the calling method cannot use original bitmap anymore. This is to prevent
+	 * OutOfMemory errors
+	 * 
 	 * @param pathToImage
 	 * @param originalBitmap
 	 * @param maxWidth
@@ -120,21 +127,52 @@ public class MultiBackgroundUtilities {
 	private static Bitmap
 			resizeBitmapAndCorrectBitmapOrientation(String pathToImage,
 					Bitmap originalBitmap,
+					BitmapFactory.Options options,
 					int maxWidth,
-					int maxHeight) {
+					int maxHeight,
+					MultiBackgroundImage.ImageSize imageSize) {
 		Matrix rotationMatrix = new Matrix();
 		int rotationRequired = getRequiredimageRotation(pathToImage);
 		rotationMatrix.postRotate(rotationRequired);
-		Bitmap roatedBitmap = Bitmap.createBitmap(originalBitmap, 0, 0, originalBitmap.getWidth(),
-						originalBitmap.getHeight(), rotationMatrix, true);
+		Bitmap roatedBitmap = Bitmap.createBitmap(originalBitmap, 0, 0,
+				originalBitmap.getWidth(), originalBitmap.getHeight(),
+				rotationMatrix, true);
 		if (roatedBitmap != originalBitmap) {
 			originalBitmap.recycle();
 		}
-		Bitmap scaledBitmap = Bitmap.createScaledBitmap(roatedBitmap, maxWidth, maxHeight, true);
-		if(scaledBitmap != roatedBitmap) {
+		int[] scaledWidthHeight = getScaledWidthHeight(roatedBitmap, imageSize,
+				getImageAspectRatio(options, rotationRequired), maxWidth,
+				maxHeight);
+		Bitmap scaledBitmap = Bitmap.createScaledBitmap(roatedBitmap,
+				scaledWidthHeight[0], scaledWidthHeight[1], true);
+		if (scaledBitmap != roatedBitmap) {
 			roatedBitmap.recycle();
 		}
-		return scaledBitmap; 
+		return scaledBitmap;
+	}
+
+	public static int[] getScaledWidthHeight(Bitmap bitmap,
+			ImageSize imageSize,
+			double aspectRatio,
+			int maxWidth,
+			int maxHeight) {
+		int[] widthHeight = new int[] { bitmap.getWidth(), bitmap.getHeight() };
+
+		if (imageSize == MultiBackgroundImage.ImageSize.COVER_FULL_SCREEN) {
+			widthHeight[0] = maxWidth;
+			widthHeight[1] = maxHeight;
+		} else if (aspectRatio > 0) {
+			widthHeight[0] = maxWidth;
+			int tempHeight = (int) (maxWidth / aspectRatio);
+
+			if (tempHeight > maxHeight) {
+				tempHeight = maxHeight;
+				widthHeight[0] = (int) (tempHeight * aspectRatio);
+			}
+			widthHeight[1] = tempHeight;
+		}
+		return widthHeight;
+
 	}
 
 	public static int getRequiredimageRotation(String pathToImage) {
@@ -169,7 +207,7 @@ public class MultiBackgroundUtilities {
 	 * will not be in any other's nextImageNumber) to the last image (the one
 	 * whose nextImageNumber is
 	 * MultiBackgroundConstants.DEFAULT_NEXT_IMAGE_NUMBER
-	 *
+	 * 
 	 * @param nextImageNumberToMbiMap
 	 * @return
 	 */
@@ -189,5 +227,49 @@ public class MultiBackgroundUtilities {
 		}
 		Log.i(TAG, "Total size of the list is: " + imageListFromEnd.size());
 		return CommonUtilities.reverseList(imageListFromEnd);
+	}
+
+	/**
+	 * Get the aspect ratio of a resource
+	 * 
+	 * @param res
+	 * @param resourceId
+	 * @return
+	 */
+	public static double getImageAspectRatio(Resources res, int resourceId) {
+		final BitmapFactory.Options options = new BitmapFactory.Options();
+		options.inJustDecodeBounds = true;
+		Bitmap bm = BitmapFactory.decodeResource(res, resourceId, options);
+		if (bm == null) {
+			return -1;
+		}
+		return options.outWidth * 1.0 / options.outHeight;
+	}
+
+	public static double getImageAspectRatio(String path) {
+		double aspectRatio = -1;
+		final BitmapFactory.Options options = new BitmapFactory.Options();
+		options.inJustDecodeBounds = true;
+		BitmapFactory.decodeFile(path, options);
+		if (options.outWidth <= 0 || options.outHeight <= 0) {
+			Log.e(TAG, "Error opening image file for path: " + path);
+			aspectRatio = -1;
+		} else {
+			int rotationRequired = MultiBackgroundUtilities
+					.getRequiredimageRotation(path);
+			aspectRatio = MultiBackgroundUtilities.getImageAspectRatio(options, rotationRequired);
+		}
+		return aspectRatio;
+	}
+
+	public static double getImageAspectRatio(BitmapFactory.Options options,
+			int rotationRequired) {
+		double aspectRatio = -1;
+		if (rotationRequired == 90 || rotationRequired == 270) {
+			aspectRatio = options.outHeight * 1.0 / options.outWidth;
+		} else {
+			aspectRatio = options.outWidth * 1.0 / options.outHeight;
+		}
+		return aspectRatio;
 	}
 }

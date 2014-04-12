@@ -6,8 +6,10 @@ import java.util.List;
 import android.app.Activity;
 import android.app.WallpaperManager;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.database.Cursor;
 import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -17,16 +19,21 @@ import android.view.View;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
+import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import com.apps.interestingapps.multibackground.common.DatabaseHelper;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundConstants;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundImage;
+import com.apps.interestingapps.multibackground.common.MultiBackgroundImage.ImageSize;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundUtilities;
 import com.apps.interestingapps.multibackground.listeners.AddImageClickListener;
 import com.apps.interestingapps.multibackground.listeners.DragToDeleteListener;
 import com.apps.interestingapps.multibackground.listeners.MbiDragListener;
 import com.apps.interestingapps.multibackground.listeners.MbiLongClickListener;
+import com.apps.interestingapps.multibackground.listeners.MbiOnClickListener;
 import com.google.ads.AdRequest;
 import com.google.ads.AdView;
 
@@ -41,13 +48,16 @@ public class SetWallpaperActivity extends Activity {
 	private List<MultiBackgroundImage> mbiList;
 	private LinearLayout linearLayoutInsideHsv;
 	private static final String TAG = "SetWallpaperActivity";
-	private ImageView plusImageView;
+	private ImageView plusImageView, currentImageView;
 	private HorizontalScrollView hsv;
 	private ImageView deleteImageView;
 	private int screenWidth, screenHeight, quarterScreenWidth,
 			quarterScreenHeight;
-
+	private int halfScreenWidth, halfScreenHeight;
+	private RadioGroup radioGroup;
+	private MultiBackgroundImage currentSelectedMbi;
 	private AdView adview;
+	private RelativeLayout currentImageViewRelativeLayout;
 
 	@SuppressWarnings("deprecation")
 	@Override
@@ -55,19 +65,27 @@ public class SetWallpaperActivity extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
 
+//		this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 		Display display = getWindowManager().getDefaultDisplay();
 		screenWidth = display.getWidth();
 		screenHeight = display.getHeight();
 		quarterScreenWidth = screenWidth / 4;
 		quarterScreenHeight = screenHeight / 4;
+		halfScreenWidth = screenWidth / 2;
+		halfScreenHeight = screenHeight / 2;
+
 		databaseHelper = DatabaseHelper.initializeDatabase(this);
+
 		initializeStaticViews();
+
 		imageViewList = new ArrayList<ImageView>();
 		mbiList = new ArrayList<MultiBackgroundImage>();
 		getAllImages();
-		
+		currentImageViewRelativeLayout.getLayoutParams().width = halfScreenWidth;
+		currentImageViewRelativeLayout.getLayoutParams().height = halfScreenHeight;
+
 		// re.addTestDevice(AdRequest.TEST_EMULATOR);
-				// re.addTestDevice("134A570CAEC830760EF3144B1EED15A5");
+		// re.addTestDevice("134A570CAEC830760EF3144B1EED15A5");
 
 		adview = (AdView) findViewById(R.id.adView);
 		AdRequest re = new AdRequest();
@@ -89,6 +107,9 @@ public class SetWallpaperActivity extends Activity {
 		hsv = (HorizontalScrollView) findViewById(R.id.horizontalScrollView);
 		deleteImageView = (ImageView) findViewById(R.id.deleteImageView);
 		deleteImageView.setOnDragListener(new DragToDeleteListener(this));
+		currentImageView = (ImageView) findViewById(R.id.cropCurrentImageView);
+		radioGroup = (RadioGroup) findViewById(R.id.radio_image_size_group);
+		currentImageViewRelativeLayout = (RelativeLayout)findViewById(R.id.cropImageRelativeLayout);
 	}
 
 	/**
@@ -142,17 +163,15 @@ public class SetWallpaperActivity extends Activity {
 	/**
 	 * Updates the list of current Images in database and adds the provided
 	 * image to the Horizontal Scroll View at the end
-	 * 
+	 *
 	 * @param imagePath
 	 */
 	private void addImageToHorizontalLayout(MultiBackgroundImage mbi) {
 		ImageView iv = new ImageView(getApplicationContext());
 		iv.setPadding(5, 5, 5, 5);
 		Bitmap bitmap = null;
-
 		try {
-			bitmap = generateImageThumbnail(mbi.getPath(), quarterScreenWidth,
-					quarterScreenHeight);
+			bitmap = generateImageThumbnail(mbi.getPath(), quarterScreenWidth);
 		} catch (Exception e) {
 			Log.d(TAG, "Unable to create bitmap for the given path due to " + e);
 		}
@@ -160,22 +179,24 @@ public class SetWallpaperActivity extends Activity {
 			Log.w(TAG,
 					"Unable to load image from the given path. Loading the default image:");
 			bitmap = generateImageThumbnail(R.drawable.image_not_found,
-					quarterScreenWidth, quarterScreenHeight);
+					quarterScreenWidth);
 		}
 		iv.setImageBitmap(bitmap);
 		iv.setOnDragListener(new MbiDragListener(this));
 		iv.setOnLongClickListener(new MbiLongClickListener(this));
-
+		// Log.d(TAG, "Plus Image View bottom = " + plusImageView.getBottom()
+		// + " right = " + plusImageView.getRight());
+		iv.setOnClickListener(new MbiOnClickListener(this, mbi,
+				currentImageView, mbi.getPath(), halfScreenWidth,
+				halfScreenHeight, radioGroup));
 		addImageView(mbi, iv);
 	}
 
-	private Bitmap generateImageThumbnail(String imagePath,
-			int width,
-			int height) {
+	private Bitmap generateImageThumbnail(String imagePath, int width) {
 		Bitmap scaledBitmap = null;
 		try {
 			scaledBitmap = MultiBackgroundUtilities.scaleDownImageAndDecode(
-					imagePath, width, height);
+					imagePath, width, width, ImageSize.COVER_FULL_SCREEN);
 		} catch (OutOfMemoryError oom) {
 			Toast.makeText(this, "Image is very large to load. ",
 					Toast.LENGTH_SHORT).show();
@@ -183,16 +204,15 @@ public class SetWallpaperActivity extends Activity {
 		return scaledBitmap;
 	}
 
-	private Bitmap
-			generateImageThumbnail(int resourceId, int width, int height) {
+	private Bitmap generateImageThumbnail(int resourceId, int width) {
 		Bitmap scaledBitmap = MultiBackgroundUtilities.scaleDownImageAndDecode(
-				getResources(), resourceId, width, height);
+				getResources(), resourceId, width, width);
 		return scaledBitmap;
 	}
 
 	/**
 	 * Method to add an image to the database and current list of Image Views
-	 * 
+	 *
 	 * @param imageUri
 	 */
 	public void addNewImage(Uri imageUri) {
@@ -205,9 +225,10 @@ public class SetWallpaperActivity extends Activity {
 		try {
 			newMbi = databaseHelper.addMultiBackgroundImage(imagePath);
 			if (newMbi == null) {
-				Toast.makeText(getApplicationContext(),
-						"Could not add a new Image.", Toast.LENGTH_SHORT)
-						.show();
+				Toast.makeText(
+						getApplicationContext(),
+						"Could not add a new Image, because maximum allowed images are already added to list.",
+						Toast.LENGTH_SHORT).show();
 			} else {
 				addImageToHorizontalLayout(newMbi);
 			}
@@ -273,7 +294,7 @@ public class SetWallpaperActivity extends Activity {
 	 * Method to find the indices where the drag started and where it ended in
 	 * the imageViewList. We will have to update the image numbers of all the
 	 * images in between
-	 * 
+	 *
 	 * @param sourceView
 	 *            The image that is being dragged
 	 * @param targetView
@@ -326,6 +347,12 @@ public class SetWallpaperActivity extends Activity {
 					"Unable to delete the desired image", Toast.LENGTH_SHORT)
 					.show();
 		} else {
+			if (currentSelectedMbi != null
+					&& currentSelectedMbi.equals(mbiToBeDeleted)) {
+				Log.d(TAG, "MBI to be deleted is currently selected");
+				currentImageView.setVisibility(View.INVISIBLE);
+				radioGroup.setVisibility(View.INVISIBLE);
+			}
 			removeImageView(imageToBeDeleted, indexOfImage);
 		}
 	}
@@ -363,5 +390,68 @@ public class SetWallpaperActivity extends Activity {
 
 	public HorizontalScrollView getHorizontalScrollView() {
 		return hsv;
+	}
+
+	public void setCurrentSelectedMbi(MultiBackgroundImage mbi) {
+		currentSelectedMbi = mbi;
+	}
+
+	public MultiBackgroundImage getCurrentSelectedMbi() {
+		return currentSelectedMbi;
+	}
+
+	/**
+	 * OnClick listener for Radio buttons.
+	 *
+	 * @param view
+	 */
+	public void onRadioButtonClicked(View view) {
+		// Is the button now checked?
+		boolean checked = ((RadioButton) view).isChecked();
+		ImageSize selectedImageSize = ImageSize.BEST_FIT;
+		// Check which radio button was clicked
+		switch (view.getId()) {
+		case R.id.radio_cover_full_screen:
+			if (checked) {
+				Log.i(TAG, "Cover full screen is selected.");
+				selectedImageSize = ImageSize.COVER_FULL_SCREEN;
+			}
+			break;
+		case R.id.radio_best_fit:
+			if (checked) {
+				Log.i(TAG, "Best Fit is selected.");
+				selectedImageSize = ImageSize.BEST_FIT;
+			}
+			break;
+		}
+
+		if (currentSelectedMbi == null) {
+			Log.e(TAG, "Current selected image is null.");
+		} else {
+			if (currentSelectedMbi.getImageSize() != selectedImageSize) {
+				databaseHelper.updateImageSize(currentSelectedMbi.get_id(),
+						selectedImageSize);
+				currentSelectedMbi.setImageSize(selectedImageSize);
+				Bitmap sourceBitmap = ((BitmapDrawable) currentImageView
+						.getDrawable()).getBitmap();
+				Log.i(TAG, "Current Image Width = " + sourceBitmap.getWidth()
+						+ " height = " + sourceBitmap.getHeight());
+				int[] scaledWidthHeight = MultiBackgroundUtilities
+						.getScaledWidthHeight(sourceBitmap, selectedImageSize,
+								currentSelectedMbi.getAspectRatio(),
+								halfScreenWidth, halfScreenHeight);
+				Log.i(TAG, "Expected Image Width = " + scaledWidthHeight[0]
+						+ " height = " + scaledWidthHeight[1]);
+				Bitmap scaledCurrentImageViewBitmap = Bitmap
+						.createScaledBitmap(sourceBitmap, scaledWidthHeight[0],
+								scaledWidthHeight[1], true);
+				currentImageView.setImageBitmap(scaledCurrentImageViewBitmap);
+				if (scaledCurrentImageViewBitmap != sourceBitmap) {
+					sourceBitmap.recycle();
+				}
+			} else {
+				Log.d(TAG, "The current image size is already selected.");
+			}
+		}
 	}
 }

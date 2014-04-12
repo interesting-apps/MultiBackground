@@ -1,56 +1,105 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
-    android:orientation="vertical" >
+    android:background="@color/Purple" >
 
-    <LinearLayout
+    <Button
+        android:id="@+id/button1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="horizontal" >
+        android:layout_alignParentTop="true"
+        android:onClick="onClick"
+        android:text="@string/set_wallpaper_button_description" />
 
-        <Button
-            android:id="@+id/button1"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:onClick="onClick"
-            android:text="@string/set_wallpaper_button_description" />
-
-        <ImageView
-            android:id="@+id/plusImageView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:contentDescription="@string/plus_image_description"
-            android:src="@drawable/small_green_circle_plus_image" />
-
-        <ImageView
-            android:id="@+id/deleteImageView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:contentDescription="@string/delete_image_description"
-            android:src="@drawable/delete_bin"
-            android:visibility="invisible" />
-    </LinearLayout>
-
-    <HorizontalScrollView
-        android:id="@+id/horizontalScrollView"
+    <ImageView
+        android:id="@+id/plusImageView"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content" >
+        android:layout_height="wrap_content"
+        android:layout_toRightOf="@id/button1"
+        android:contentDescription="@string/plus_image_description"
+        android:src="@drawable/small_green_circle_plus_image" />
 
-        <LinearLayout
-            android:id="@+id/linearLayoutInsideHsv"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal" />
-    </HorizontalScrollView>
-    
-    <com.google.ads.AdView
-        xmlns:ads="http://schemas.android.com/apk/lib/com.google.ads"
-        android:id="@+id/adView"
+    <ImageView
+        android:id="@+id/deleteImageView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_toRightOf="@id/plusImageView"
+        android:contentDescription="@string/delete_image_description"
+        android:src="@drawable/delete_bin"
+        android:visibility="invisible" />
+
+    <RelativeLayout
+        android:id="@+id/cropImageRelativeLayout"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        ads:adSize="BANNER"
-        ads:adUnitId="a1528479ac54bab"
-        ads:refreshInterval="60" />
+        android:layout_below="@id/plusImageView"
+        android:layout_centerHorizontal="true"
+        android:orientation="vertical" >
 
-</LinearLayout>
+        <ImageView
+            android:id="@+id/cropCurrentImageView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:contentDescription="@string/crop_current_image_description"
+            android:padding="5dip"
+            android:src="@drawable/default_background"
+            android:visibility="invisible" />
+    </RelativeLayout>
+
+    <LinearLayout
+        android:id="@+id/adsScrollViewRadioGroup"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:orientation="vertical" >
+
+        <RadioGroup
+            android:id="@+id/radio_image_size_group"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:orientation="horizontal"
+            android:visibility="invisible" >
+
+            <RadioButton
+                android:id="@+id/radio_cover_full_screen"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="onRadioButtonClicked"
+                android:text="@string/full_screen"
+                android:textColor="@color/White" />
+
+            <RadioButton
+                android:id="@+id/radio_best_fit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="onRadioButtonClicked"
+                android:text="@string/best_fit"
+                android:textColor="@color/White" />
+        </RadioGroup>
+
+        <HorizontalScrollView
+            android:id="@+id/horizontalScrollView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" >
+
+            <LinearLayout
+                android:id="@+id/linearLayoutInsideHsv"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
+
+        <com.google.ads.AdView
+            xmlns:ads="http://schemas.android.com/apk/lib/com.google.ads"
+            android:id="@+id/adView"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            ads:adSize="BANNER"
+            ads:adUnitId="a1528479ac54bab"
+            ads:refreshInterval="60" />
+    </LinearLayout>
+
+</RelativeLayout>

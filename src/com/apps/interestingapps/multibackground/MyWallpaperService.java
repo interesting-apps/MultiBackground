@@ -26,7 +26,7 @@ public class MyWallpaperService extends WallpaperService {
 	private class MyWallpaperEngine extends Engine {
 		private final Handler handler = new Handler();
 		private float downX, upX;
-		private final double THRESHOLD_FOR_SCREEN_CHANGE = 0.53;
+		private final double THRESHOLD_FOR_SCREEN_CHANGE = 0.48;
 		private final double SCREEN_COVERAGE_FACTOR = 0.45;
 		private int screenX, screenY;
 		private boolean changeBackground = false;
@@ -125,15 +125,15 @@ public class MyWallpaperService extends WallpaperService {
 							|| threshold >= THRESHOLD_FOR_SCREEN_CHANGE) {
 						/*
 						 * TODO: take into consideration :
-						 * 
+						 *
 						 * 1. long press can be done before/after down/up events
 						 * --> Checked if distance is greater than half the
 						 * screen size, it will change the home screen
-						 * 
+						 *
 						 * 2. Current screen can be the last screen in the
 						 * direction of movement --> Currently couldn't find a
 						 * better way, so changing the feature of the app.
-						 * 
+						 *
 						 * 3. Multitouch events
 						 */
 						changeBackground = true;
@@ -181,14 +181,14 @@ public class MyWallpaperService extends WallpaperService {
 				if (currentBitmap != null) {
 					currentBitmap.recycle();
 				}
+				getNextImageNumber();
 				if (imageList.size() != 0 && currentImageNumber != -1) {
-					getNextImageNumber();
 					String imagePath = imageList.get(currentImageNumber)
 							.getPath();
 					try {
 						scaledBitmap = MultiBackgroundUtilities
 								.scaleDownImageAndDecode(imagePath, screenX,
-										screenY);
+										screenY, imageList.get(currentImageNumber).getImageSize());
 					} catch (Exception e) {
 						Log.d(TAG,
 								"Unable to load image for the given path due to: "
@@ -215,7 +215,11 @@ public class MyWallpaperService extends WallpaperService {
 				changeBackground = false;
 				canvas.drawColor(0, android.graphics.PorterDuff.Mode.CLEAR);
 				if (scaledBitmap != null) {
-					canvas.drawBitmap(scaledBitmap, 0, 0, null);
+
+					int wallpaperX = screenX / 2 - scaledBitmap.getWidth() / 2;
+					int wallpaperY = screenY / 2 - scaledBitmap.getHeight() / 2;
+					canvas.drawBitmap(scaledBitmap, wallpaperX > 0 ? wallpaperX
+							: 0, wallpaperY > 0 ? wallpaperY : 0, null);
 					currentBitmap = scaledBitmap;
 				}
 			}

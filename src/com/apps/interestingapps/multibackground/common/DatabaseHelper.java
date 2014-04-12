@@ -30,7 +30,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
 	private String[] allColumns = { MultiBackgroundConstants.ID_COLUMN,
 			MultiBackgroundConstants.NEXT_IMAGE_NUMBER_COLUMN,
-			MultiBackgroundConstants.PATH_COLUMN };
+			MultiBackgroundConstants.PATH_COLUMN,
+			MultiBackgroundConstants.IMAGE_SIZE_COLUMN};
 
 	private DatabaseHelper(Context context) {
 		super(context, MultiBackgroundConstants.DATABASE_NAME, null,
@@ -310,6 +311,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			values.put(MultiBackgroundConstants.NEXT_IMAGE_NUMBER_COLUMN,
 					MultiBackgroundConstants.DEFAULT_NEXT_IMAGE_NUMBER);
 			values.put(MultiBackgroundConstants.PATH_COLUMN, path);
+			values.put(MultiBackgroundConstants.IMAGE_SIZE_COLUMN, MultiBackgroundImage.ImageSize.BEST_FIT.toString());
 			int insertId = (int) database.insert(
 					MultiBackgroundConstants.IMAGE_PATH_TABLE, null, values);
 			if (insertId < 0) {
@@ -317,11 +319,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			}
 			isDatabaseUpdated = true;
 			newMbi = new MultiBackgroundImage(insertId,
-					MultiBackgroundConstants.DEFAULT_NEXT_IMAGE_NUMBER, path);
+					MultiBackgroundConstants.DEFAULT_NEXT_IMAGE_NUMBER, path,
+					MultiBackgroundImage.ImageSize.BEST_FIT);
 			Log.i(TAG, "Successfully created a new MBI: " + newMbi);
 
 			/*
-			 * Update previous row tha had nextImageNumber -1 to point to newly
+			 * Update previous row that had nextImageNumber -1 to point to newly
 			 * added row in database
 			 */
 			previousImageCursor = getRowsByNextImageNumber(MultiBackgroundConstants.DEFAULT_NEXT_IMAGE_NUMBER);
@@ -614,5 +617,23 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			database.endTransaction();
 		}
 		return true;
+	}
+	
+	public int updateImageSize(int _id, MultiBackgroundImage.ImageSize imageSize) {
+		ContentValues values = new ContentValues();
+		values.put(MultiBackgroundConstants.IMAGE_SIZE_COLUMN,
+				imageSize.toString());
+		int rowsAffected = database.update(
+				MultiBackgroundConstants.IMAGE_PATH_TABLE, values,
+				MultiBackgroundConstants.ID_COLUMN + "=?",
+				new String[] { Integer.toString(_id) });
+		if (rowsAffected < 1) {
+			Log.e(TAG, "Unable to locate a row with id: " + _id);
+		} else {
+			Log.d(TAG, "Updated the ImageSize for row with id:" + _id
+					+ " to " + imageSize);
+			isDatabaseUpdated = true;
+		}
+		return rowsAffected;
 	}
 }

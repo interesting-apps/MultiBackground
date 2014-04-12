@@ -1,0 +1,297 @@
+Crop Rectangle View in main.xml
+
+<com.apps.interestingapps.multibackground.common.CropImageView
+            android:id="@+id/cropRectangleView"
+            android:layout_below="@id/plusImageView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="invisible" />
+            
+MbiOnClickListener:
+            Constructor: this.cropImageView = cropImageView;
+            on click: 
+            cropImageView.setVisibility(View.VISIBLE);
+            cropImageView.updateBitmap(currentImageView);
+            
+CropImageView class:
+
+package com.apps.interestingapps.multibackground.common;
+
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.util.AttributeSet;
+import android.util.Log;
+import android.view.MotionEvent;
+import android.view.View;
+import android.widget.ImageView;
+
+import com.apps.interestingapps.multibackground.R;
+
+public class CropImageView extends View {
+
+	private Bitmap cropImageBitmap, stretchedCropBitmap;
+
+	private int bitmapWidth = 50, bitmapHeight = 50;
+	private float xPosition = 0.0f, yPosition = 0.0f;
+	private static final String TAG = "CropImageView";
+	private int downX, downY;
+	private ImageView currentImageView;
+	private static final int CLICK_THRESHOLD = 15;
+	private boolean topLeftCorner, topRightCorner, bottomLeftCorner,
+			bottomRightCorner;
+
+	public CropImageView(Context context) {
+		super(context);
+		init(context);
+	}
+
+	public CropImageView(Context context, AttributeSet attrs, int defStyle) {
+		super(context, attrs, defStyle);
+		init(context);
+	}
+
+	public CropImageView(Context context, AttributeSet attrs) {
+		super(context, attrs);
+		init(context);
+	}
+
+	protected void onDraw(Canvas canvas) {
+		canvas.drawBitmap(stretchedCropBitmap, xPosition, yPosition, null);
+	}
+
+	public void updateBitmap(ImageView currentImageView) {
+		this.currentImageView = currentImageView;
+		bitmapWidth = currentImageView.getWidth();
+		bitmapHeight = currentImageView.getHeight();
+		xPosition = currentImageView.getX();
+		yPosition = currentImageView.getY();
+		stretchedCropBitmap = Bitmap.createScaledBitmap(cropImageBitmap,
+				bitmapWidth, bitmapHeight, true);
+		invalidate();
+	}
+
+	private void updateBitmap() {
+		if (stretchedCropBitmap != null) {
+			stretchedCropBitmap.recycle();
+		}
+		stretchedCropBitmap = Bitmap.createScaledBitmap(cropImageBitmap,
+				bitmapWidth, bitmapHeight, true);
+		invalidate();
+	}
+
+	private void init(Context context) {
+		setFocusable(true);
+		if (cropImageBitmap == null) {
+			cropImageBitmap = BitmapFactory.decodeResource(context
+					.getResources(), R.drawable.crop_image_rectangle);
+			bitmapWidth = cropImageBitmap.getWidth();
+			bitmapHeight = cropImageBitmap.getHeight();
+			stretchedCropBitmap = cropImageBitmap;
+		}
+	}
+
+	public boolean onTouchEvent(MotionEvent event) {
+		int eventAction = event.getAction();
+
+		int eventX = (int) event.getX();
+		int eventY = (int) event.getY();
+
+		switch (eventAction) {
+		case MotionEvent.ACTION_DOWN:
+			downX = eventX;
+			downY = eventY;
+
+			float eventDistanceFromX = eventX - xPosition;
+			float eventDistanceFromY = eventY - yPosition;
+			float eventDistanceFromRightX = xPosition + bitmapWidth - eventX;
+			float eventDistanceFromBottomY = yPosition + bitmapHeight - eventY;
+			if (eventDistanceFromX > 0 && eventDistanceFromRightX > 0
+					&& eventDistanceFromY > 0 && eventDistanceFromBottomY > 0) {
+				topLeftCorner = (eventDistanceFromX > 0 && eventDistanceFromX < CLICK_THRESHOLD)
+						&& (eventDistanceFromY > 0 && eventDistanceFromY < CLICK_THRESHOLD);
+				topRightCorner = (eventDistanceFromRightX > 0 && eventDistanceFromRightX < CLICK_THRESHOLD)
+						&& (eventDistanceFromY > 0 && eventDistanceFromY < CLICK_THRESHOLD);
+				bottomLeftCorner = (eventDistanceFromBottomY > 0 && eventDistanceFromBottomY < CLICK_THRESHOLD)
+						&& (eventDistanceFromX > 0 && eventDistanceFromX < CLICK_THRESHOLD);
+				bottomRightCorner = (eventDistanceFromBottomY > 0 && eventDistanceFromBottomY < CLICK_THRESHOLD)
+						&& (eventDistanceFromRightX > 0 && eventDistanceFromRightX < CLICK_THRESHOLD);
+			}
+			break;
+
+		case MotionEvent.ACTION_MOVE:
+			int deltaX = eventX - downX;
+			int deltaY = eventY - downY;
+			downX = eventX;
+			downY = eventY;
+			/*
+			 * Negative delta means the movement is going from right to left for
+			 * X and down to up for Y
+			 */
+			boolean positionChanged = false;
+
+			// float eventDistanceFromX = eventX - xPosition;
+			// float eventDistanceFromY = eventY - yPosition;
+			// float eventDistanceFromRightX = xPosition + bitmapWidth - eventX;
+			// float eventDistanceFromBottomY = yPosition + bitmapHeight -
+			// eventY;
+
+			/*
+			 * The Event should occur within the bounds of the crop image
+			 * rectangle
+			 */
+			// if (eventDistanceFromX > 0 && eventDistanceFromRightX > 0
+			// && eventDistanceFromY > 0 && eventDistanceFromBottomY > 0) {
+			// topLeftCorner = (eventDistanceFromX > 0 && eventDistanceFromX <
+			// CLICK_THRESHOLD)
+			// && (eventDistanceFromY > 0 && eventDistanceFromY <
+			// CLICK_THRESHOLD);
+			// topRightCorner = (eventDistanceFromRightX > 0 &&
+			// eventDistanceFromRightX < CLICK_THRESHOLD)
+			// && (eventDistanceFromY > 0 && eventDistanceFromY <
+			// CLICK_THRESHOLD);
+			// bottomLeftCorner = (eventDistanceFromBottomY > 0 &&
+			// eventDistanceFromBottomY < CLICK_THRESHOLD)
+			// && (eventDistanceFromX > 0 && eventDistanceFromX <
+			// CLICK_THRESHOLD);
+			// bottomRightCorner = (eventDistanceFromBottomY > 0 &&
+			// eventDistanceFromBottomY < CLICK_THRESHOLD)
+			// && (eventDistanceFromRightX > 0 && eventDistanceFromRightX <
+			// CLICK_THRESHOLD);
+			if (topLeftCorner || topRightCorner || bottomLeftCorner
+					|| bottomRightCorner) {
+
+				if (topLeftCorner || bottomLeftCorner) {
+					/*
+					 * If the event started on left end, then with positive
+					 * delta width should decrease
+					 */
+					int newWidth = bitmapWidth - deltaX;
+					/*
+					 * Reduce the width only the new width is greater than the
+					 * double of click threshold (so that all the corners are
+					 * visible all the time)
+					 */
+					if (newWidth > 2 * CLICK_THRESHOLD
+							&& newWidth < this.getRight()
+									- currentImageView.getX()) {
+						bitmapWidth = newWidth;
+					}
+
+//					if (topLeftCorner) {
+						/*
+						 * With positive delta the X and Y position should
+						 * increase
+						 */
+						float newXPosition = xPosition + deltaX;
+						if (newXPosition > currentImageView.getX()
+								|| newXPosition + bitmapWidth < currentImageView
+										.getRight())
+							xPosition = newXPosition;
+//					}
+				} else if (topRightCorner || bottomRightCorner) {
+					/*
+					 * If the event started on right end, then with positive
+					 * delta width should increase
+					 */
+					int newWidth = bitmapWidth + deltaX;
+					/*
+					 * Reduce the width only the new width is greater than the
+					 * double of click threshold (so that all the corners are
+					 * visible all the time)
+					 */
+					if (newWidth > 2 * CLICK_THRESHOLD
+							&& newWidth < currentImageView.getRight()
+									- -xPosition) {
+						bitmapWidth = newWidth;
+					}
+				}
+
+				if (topLeftCorner || topRightCorner) {
+					/*
+					 * If the event started on top end, then with positive delta
+					 * height should decrease
+					 */
+					int newHeight = bitmapHeight - deltaY;
+					/*
+					 * Reduce the height only if the new height is greater than
+					 * the double of click threshold (so that all the corners
+					 * are visible all the time)
+					 */
+					if (newHeight > 2 * CLICK_THRESHOLD
+							&& newHeight < this.getBottom()
+									- currentImageView.getY()) {
+						bitmapHeight = newHeight;
+					}
+
+//					if (topLeftCorner) {
+						/*
+						 * With positive delta the X and Y position should
+						 * increase
+						 */
+						float newYPosition = yPosition + deltaY;
+						if (newYPosition > currentImageView.getY()
+								|| newYPosition + bitmapHeight < currentImageView
+										.getBottom())
+							yPosition = newYPosition;
+//					}
+				} else if (bottomLeftCorner || bottomRightCorner) {
+					/*
+					 * If the event started on bottom end, then with positive
+					 * delta height should increase
+					 */
+					int newHeight = bitmapHeight + deltaY;
+					/*
+					 * Reduce the width only the new width is greater than the
+					 * double of click threshold (so that all the corners are
+					 * visible all the time)
+					 */
+					if (newHeight > 2 * CLICK_THRESHOLD
+							&& newHeight < currentImageView.getBottom()
+									- -yPosition) {
+						bitmapHeight = newHeight;
+					}
+				}
+				updateBitmap();
+			} else {
+
+				float newXPosition = xPosition + deltaX;
+				float newYPosition = yPosition + deltaY;
+
+				if (deltaX < 0 && newXPosition > currentImageView.getX()) {
+					xPosition = newXPosition;
+					positionChanged = true;
+				} else if (deltaX > 0
+						&& newXPosition + stretchedCropBitmap.getWidth() < currentImageView
+								.getRight()) {
+					positionChanged = true;
+					xPosition = newXPosition;
+				}
+
+				if (deltaY < 0 && newYPosition > currentImageView.getY()) {
+					positionChanged = true;
+					yPosition = newYPosition;
+				} else if (deltaY > 0
+						&& newYPosition + stretchedCropBitmap.getHeight() < currentImageView
+								.getBottom()) {
+					positionChanged = true;
+					yPosition = newYPosition;
+				}
+				if (positionChanged) {
+					positionChanged = false;
+					invalidate();
+				}
+			}
+			// }
+			break;
+		case MotionEvent.ACTION_UP:
+			topLeftCorner = false;
+			topRightCorner = false;
+			bottomLeftCorner = false;
+			bottomRightCorner = false;
+			break;
+		}
+		return true;
+	}
+}

@@ -77,7 +77,6 @@ public class MbiDragListener implements OnDragListener {
 		case DragEvent.ACTION_DRAG_ENTERED:
 			break;
 		case DragEvent.ACTION_DRAG_EXITED:
-
 			break;
 		case DragEvent.ACTION_DROP:
 			setWallpaperActivity.updateImagePosition(sourceView, targetView);

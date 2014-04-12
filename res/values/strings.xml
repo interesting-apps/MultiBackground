@@ -5,5 +5,9 @@
     <string name="plus_image_description">Add Image</string>
     <string name="delete_image_description">Delete Image</string>
     <string name="set_wallpaper_button_description">Set Wallpaper</string>
+    <string name="crop_current_image_description">Crop Current Image</string>
+    <string name="full_screen">Cover Full Screen</string>
+    <string name="best_fit">Best Fit</string>
+    <string name="current_image_rectangle_description">Best Fit</string>
 
 </resources>
