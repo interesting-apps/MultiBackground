@@ -2,7 +2,7 @@ CREATE TABLE image_path (
     "_id" INTEGER primary key autoincrement ,
     "next_image_number" INTEGER NOT NULL,
     "path" TEXT NOT NULL,
-    "image_size" TEXT  CHECK (IMAGE_SIZE = 'cover_full_screen' OR IMAGE_SIZE = 'best_fit') collate nocase default  'best_fit')
+    "image_size" TEXT  CHECK (IMAGE_SIZE = 'cover_full_screen' OR IMAGE_SIZE = 'best_fit' OR IMAGE_SIZE = 'crop_image') collate nocase default  'best_fit')
     
 Create INDEX IMAGE_NUMBER_INDEX ON IMAGE_PATH(IMAGE_NUMBER);
 

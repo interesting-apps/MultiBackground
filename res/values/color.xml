@@ -4,4 +4,6 @@
     <color name="SpeedDialBackground">#6d2114</color>
     <color name="White">#ffffff</color>
     <color name="Purple">#694489</color>
+    <color name="Blue">#0000FF</color>
+    <color name="Gray">#C8C8C8</color>
 </resources>

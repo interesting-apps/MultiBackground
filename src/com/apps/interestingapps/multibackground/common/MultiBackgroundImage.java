@@ -27,6 +27,7 @@ public class MultiBackgroundImage implements Comparable<MultiBackgroundImage> {
 
 	private int _id;
 	private int nextImageNumber;
+	private boolean isDeletedImage;
 
 	private String path;
 	private ImageSize imageSize;
@@ -140,5 +141,13 @@ public class MultiBackgroundImage implements Comparable<MultiBackgroundImage> {
 		} else {
 			return false;
 		}
+	}
+	
+	public boolean isDeletedImage() {
+		return isDeletedImage;
+	}
+
+	public void setDeletedImage(boolean isDeletedImage) {
+		this.isDeletedImage = isDeletedImage;
 	}
 }

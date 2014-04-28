@@ -197,7 +197,7 @@ public class MyWallpaperService extends WallpaperService {
 					if (scaledBitmap == null) {
 						scaledBitmap = MultiBackgroundUtilities
 								.scaleDownImageAndDecode(getResources(),
-										R.drawable.default_background, screenX,
+										R.drawable.default_wallpaper, screenX,
 										screenY);
 					}
 				} else {
@@ -208,7 +208,7 @@ public class MyWallpaperService extends WallpaperService {
 					Log.i(TAG, "CurrentImageNumber : " + currentImageNumber);
 					scaledBitmap = MultiBackgroundUtilities
 							.scaleDownImageAndDecode(getResources(),
-									R.drawable.default_background, screenX,
+									R.drawable.default_wallpaper, screenX,
 									screenY);
 
 				}

@@ -4,18 +4,28 @@ import java.util.ArrayList;
 import java.util.List;
 
 import android.app.Activity;
+import android.app.Dialog;
 import android.app.WallpaperManager;
+import android.content.ContentUris;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Display;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -58,6 +68,9 @@ public class SetWallpaperActivity extends Activity {
 	private MultiBackgroundImage currentSelectedMbi;
 	private AdView adview;
 	private RelativeLayout currentImageViewRelativeLayout;
+	private ImageView previousClickedImageView;
+	private int previousClickedImageIndex = 0;
+	private Button setWallpaperButton;
 
 	@SuppressWarnings("deprecation")
 	@Override
@@ -65,7 +78,7 @@ public class SetWallpaperActivity extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
 
-		this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+//		this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 		Display display = getWindowManager().getDefaultDisplay();
 		screenWidth = display.getWidth();
 		screenHeight = display.getHeight();
@@ -78,18 +91,8 @@ public class SetWallpaperActivity extends Activity {
 
 		initializeStaticViews();
 
-		imageViewList = new ArrayList<ImageView>();
-		mbiList = new ArrayList<MultiBackgroundImage>();
-		getAllImages();
-		currentImageViewRelativeLayout.getLayoutParams().width = halfScreenWidth;
-		currentImageViewRelativeLayout.getLayoutParams().height = halfScreenHeight;
-
-		// re.addTestDevice(AdRequest.TEST_EMULATOR);
-		// re.addTestDevice("134A570CAEC830760EF3144B1EED15A5");
-
-		adview = (AdView) findViewById(R.id.adView);
-		AdRequest re = new AdRequest();
-		adview.loadAd(re);
+		SharedPreferences prefs = getSharedPreferences(
+				MultiBackgroundConstants.PREFERENCES_FILE_NAME, 0);
 	}
 
 	@Override
@@ -100,7 +103,49 @@ public class SetWallpaperActivity extends Activity {
 		}
 	}
 
+	@Override
+	public void onPause() {
+		super.onPause();
+		if (previousClickedImageView != null) {
+			previousClickedImageIndex = getIndexOfImageView(previousClickedImageView);
+		} else {
+			previousClickedImageIndex = 0;
+		}
+	}
+
+	@Override
+	public void onResume() {
+		super.onResume();
+		setWallpaperButton
+				.setBackgroundResource(R.drawable.set_wallpaper_button);
+		imageViewList = new ArrayList<ImageView>();
+		mbiList = new ArrayList<MultiBackgroundImage>();
+		getAllImages();
+		currentImageViewRelativeLayout.getLayoutParams().width = halfScreenWidth;
+		currentImageViewRelativeLayout.getLayoutParams().height = halfScreenHeight;
+
+		if (mbiList.size() > 0) {
+			if (previousClickedImageIndex >= mbiList.size()) {
+				previousClickedImageIndex = 0;
+			}
+			MbiOnClickListener onClick = new MbiOnClickListener(this, mbiList
+					.get(previousClickedImageIndex), currentImageView, mbiList
+					.get(previousClickedImageIndex).getPath(), halfScreenWidth,
+					halfScreenHeight, radioGroup);
+			onClick.onClick(imageViewList.get(previousClickedImageIndex));
+		}
+
+		// re.addTestDevice(AdRequest.TEST_EMULATOR);
+		// re.addTestDevice("134A570CAEC830760EF3144B1EED15A5");
+
+		adview = (AdView) findViewById(R.id.adView);
+		AdRequest re = new AdRequest();
+		adview.loadAd(re);
+		showRateDialog();
+	}
+
 	private void initializeStaticViews() {
+		setWallpaperButton = (Button) findViewById(R.id.button1);
 		linearLayoutInsideHsv = (LinearLayout) findViewById(R.id.linearLayoutInsideHsv);
 		plusImageView = (ImageView) findViewById(R.id.plusImageView);
 		plusImageView.setOnClickListener(new AddImageClickListener(this));
@@ -109,7 +154,7 @@ public class SetWallpaperActivity extends Activity {
 		deleteImageView.setOnDragListener(new DragToDeleteListener(this));
 		currentImageView = (ImageView) findViewById(R.id.cropCurrentImageView);
 		radioGroup = (RadioGroup) findViewById(R.id.radio_image_size_group);
-		currentImageViewRelativeLayout = (RelativeLayout)findViewById(R.id.cropImageRelativeLayout);
+		currentImageViewRelativeLayout = (RelativeLayout) findViewById(R.id.cropImageRelativeLayout);
 	}
 
 	/**
@@ -128,6 +173,8 @@ public class SetWallpaperActivity extends Activity {
 	}
 
 	public void onClick(View view) {
+		setWallpaperButton
+				.setBackgroundResource(R.drawable.set_wallpaper_button_pressed);
 		Intent intent = new Intent(
 				WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER);
 		startActivity(intent);
@@ -137,6 +184,8 @@ public class SetWallpaperActivity extends Activity {
 	 * Method to perform operation once an activity has been started
 	 */
 	public void onActivityResult(int requestCode, int resultCode, Intent data) {
+		setWallpaperButton
+				.setBackgroundResource(R.drawable.set_wallpaper_button);
 		if (resultCode == Activity.RESULT_OK) {
 			if (requestCode == MultiBackgroundConstants.SELECT_PICTURE_ACTIVITY) {
 				Uri selectedImageUri = data.getData();
@@ -145,10 +194,17 @@ public class SetWallpaperActivity extends Activity {
 		}
 	}
 
+	/**
+	 * Gets path of image on Android version less than Kitkat or API 19
+	 * 
+	 * @param uri
+	 * @return
+	 */
 	private String getPath(Uri uri) {
 		String[] projection = { MediaStore.Images.Media.DATA };
 		Cursor cursor = getContentResolver().query(uri, projection, null, null,
 				null);
+
 		if (cursor != null && cursor.moveToFirst()) {
 			int column_index = cursor
 					.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
@@ -161,9 +217,153 @@ public class SetWallpaperActivity extends Activity {
 	}
 
 	/**
+	 * Get a file path from a Uri. This will get the the path for Storage Access
+	 * Framework Documents, as well as the _data field for the MediaStore and
+	 * other file-based ContentProviders.
+	 * 
+	 * @param context
+	 *            The context.
+	 * @param uri
+	 *            The Uri to query.
+	 * @author paulburke
+	 */
+	public static String getPath(final Context context, final Uri uri) {
+
+		final boolean isKitKat = Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT;
+
+		// DocumentProvider
+		if(isKitKat) {
+//		if (isKitKat && DocumentsContract.isDocumentUri(context, uri)) {
+//			// ExternalStorageProvider
+//			if (isExternalStorageDocument(uri)) {
+//				final String docId = DocumentsContract.getDocumentId(uri);
+//				final String[] split = docId.split(":");
+//				final String type = split[0];
+//
+//				if ("primary".equalsIgnoreCase(type)) {
+//					return Environment.getExternalStorageDirectory() + "/"
+//							+ split[1];
+//				}
+//
+//				// TODO handle non-primary volumes
+//			}
+//			// DownloadsProvider
+//			else if (isDownloadsDocument(uri)) {
+//
+//				final String id = DocumentsContract.getDocumentId(uri);
+//				final Uri contentUri = ContentUris.withAppendedId(Uri
+//						.parse("content://downloads/public_downloads"), Long
+//						.valueOf(id));
+//
+//				return getDataColumn(context, contentUri, null, null);
+//			}
+//			// MediaProvider
+//			else 
+			if (isMediaDocument(uri)) {
+				final String docId = DocumentsContract.getDocumentId(uri);
+				final String[] split = docId.split(":");
+				final String type = split[0];
+
+				Uri contentUri = null;
+				if ("image".equals(type)) {
+					contentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+				} else if ("video".equals(type)) {
+					contentUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
+				} else if ("audio".equals(type)) {
+					contentUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
+				}
+
+				final String selection = "_id=?";
+				final String[] selectionArgs = new String[] { split[1] };
+
+				return getDataColumn(context, contentUri, selection,
+						selectionArgs);
+			}
+//		}
+		}
+		// MediaStore (and general)
+		else if ("content".equalsIgnoreCase(uri.getScheme())) {
+			return getDataColumn(context, uri, null, null);
+		}
+		// File
+		else if ("file".equalsIgnoreCase(uri.getScheme())) {
+			return uri.getPath();
+		}
+
+		return null;
+	}
+
+	/**
+	 * Get the value of the data column for this Uri. This is useful for
+	 * MediaStore Uris, and other file-based ContentProviders.
+	 * 
+	 * @param context
+	 *            The context.
+	 * @param uri
+	 *            The Uri to query.
+	 * @param selection
+	 *            (Optional) Filter used in the query.
+	 * @param selectionArgs
+	 *            (Optional) Selection arguments used in the query.
+	 * @return The value of the _data column, which is typically a file path.
+	 */
+	public static String getDataColumn(Context context,
+			Uri uri,
+			String selection,
+			String[] selectionArgs) {
+
+		Cursor cursor = null;
+		final String column = "_data";
+		final String[] projection = { column };
+
+		try {
+			cursor = context.getContentResolver().query(uri, projection,
+					selection, selectionArgs, null);
+			if (cursor != null && cursor.moveToFirst()) {
+				final int column_index = cursor.getColumnIndexOrThrow(column);
+				return cursor.getString(column_index);
+			}
+		} finally {
+			if (cursor != null)
+				cursor.close();
+		}
+		return null;
+	}
+
+	/**
+	 * @param uri
+	 *            The Uri to check.
+	 * @return Whether the Uri authority is ExternalStorageProvider.
+	 */
+	public static boolean isExternalStorageDocument(Uri uri) {
+		return "com.android.externalstorage.documents".equals(uri
+				.getAuthority());
+	}
+
+	/**
+	 * @param uri
+	 *            The Uri to check.
+	 * @return Whether the Uri authority is DownloadsProvider.
+	 */
+	public static boolean isDownloadsDocument(Uri uri) {
+		return "com.android.providers.downloads.documents".equals(uri
+				.getAuthority());
+	}
+
+	/**
+	 * @param uri
+	 *            The Uri to check.
+	 * @return Whether the Uri authority is MediaProvider.
+	 */
+	public static boolean isMediaDocument(Uri uri) {
+		return "com.android.providers.media.documents".contains(uri
+				.getAuthority());
+	}
+
+	/**
 	 * Updates the list of current Images in database and adds the provided
 	 * image to the Horizontal Scroll View at the end
-	 *
+	 * 
 	 * @param imagePath
 	 */
 	private void addImageToHorizontalLayout(MultiBackgroundImage mbi) {
@@ -180,12 +380,11 @@ public class SetWallpaperActivity extends Activity {
 					"Unable to load image from the given path. Loading the default image:");
 			bitmap = generateImageThumbnail(R.drawable.image_not_found,
 					quarterScreenWidth);
+			mbi.setDeletedImage(true);
 		}
 		iv.setImageBitmap(bitmap);
 		iv.setOnDragListener(new MbiDragListener(this));
 		iv.setOnLongClickListener(new MbiLongClickListener(this));
-		// Log.d(TAG, "Plus Image View bottom = " + plusImageView.getBottom()
-		// + " right = " + plusImageView.getRight());
 		iv.setOnClickListener(new MbiOnClickListener(this, mbi,
 				currentImageView, mbi.getPath(), halfScreenWidth,
 				halfScreenHeight, radioGroup));
@@ -212,11 +411,13 @@ public class SetWallpaperActivity extends Activity {
 
 	/**
 	 * Method to add an image to the database and current list of Image Views
-	 *
+	 * 
 	 * @param imageUri
 	 */
 	public void addNewImage(Uri imageUri) {
-		String imagePath = getPath(imageUri);
+//		String imagePath = getPath(imageUri);
+		String imagePath = getPath(getApplicationContext(), imageUri);
+		Log.i(TAG, imagePath);
 		addNewImage(imagePath);
 	}
 
@@ -227,10 +428,25 @@ public class SetWallpaperActivity extends Activity {
 			if (newMbi == null) {
 				Toast.makeText(
 						getApplicationContext(),
-						"Could not add a new Image, because maximum allowed images are already added to list.",
+						"Maximum allowed images ("
+								+ MultiBackgroundConstants.MAX_IMAGES
+								+ ") are already added to list.",
 						Toast.LENGTH_SHORT).show();
 			} else {
 				addImageToHorizontalLayout(newMbi);
+
+				MbiOnClickListener imageOnClickListener = new MbiOnClickListener(
+						this, newMbi, currentImageView, newMbi.getPath(),
+						halfScreenWidth, halfScreenHeight, radioGroup);
+				imageOnClickListener.onClick(imageViewList.get(imageViewList
+						.size() - 1));
+
+				hsv.postDelayed(new Runnable() {
+					public void run() {
+						hsv.fullScroll(HorizontalScrollView.FOCUS_RIGHT);
+					}
+				}, 100L);
+				previousClickedImageIndex = mbiList.size() - 1;
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -294,7 +510,7 @@ public class SetWallpaperActivity extends Activity {
 	 * Method to find the indices where the drag started and where it ended in
 	 * the imageViewList. We will have to update the image numbers of all the
 	 * images in between
-	 *
+	 * 
 	 * @param sourceView
 	 *            The image that is being dragged
 	 * @param targetView
@@ -347,13 +563,34 @@ public class SetWallpaperActivity extends Activity {
 					"Unable to delete the desired image", Toast.LENGTH_SHORT)
 					.show();
 		} else {
+			removeImageView(imageToBeDeleted, indexOfImage);
 			if (currentSelectedMbi != null
 					&& currentSelectedMbi.equals(mbiToBeDeleted)) {
 				Log.d(TAG, "MBI to be deleted is currently selected");
-				currentImageView.setVisibility(View.INVISIBLE);
-				radioGroup.setVisibility(View.INVISIBLE);
+				if (mbiList.size() > 0) {
+					if (indexOfImage == 0) {
+						MbiOnClickListener onClick = new MbiOnClickListener(
+								this, mbiList.get(0), currentImageView, mbiList
+										.get(0).getPath(), halfScreenWidth,
+								halfScreenHeight, radioGroup);
+						onClick.onClick(imageViewList.get(0));
+						Log.i(TAG, "Image with index 0 deleted.");
+					} else {
+						MbiOnClickListener onClick = new MbiOnClickListener(
+								this, mbiList.get(indexOfImage - 1),
+								currentImageView, mbiList.get(indexOfImage - 1)
+										.getPath(), halfScreenWidth,
+								halfScreenHeight, radioGroup);
+						onClick.onClick(imageViewList.get(indexOfImage - 1));
+						Log.i(TAG, "Showing image with index: "
+								+ (indexOfImage - 1));
+					}
+				} else {
+					currentImageView.setVisibility(View.INVISIBLE);
+					radioGroup.setVisibility(View.INVISIBLE);
+				}
 			}
-			removeImageView(imageToBeDeleted, indexOfImage);
+
 		}
 	}
 
@@ -402,7 +639,7 @@ public class SetWallpaperActivity extends Activity {
 
 	/**
 	 * OnClick listener for Radio buttons.
-	 *
+	 * 
 	 * @param view
 	 */
 	public void onRadioButtonClicked(View view) {
@@ -453,5 +690,113 @@ public class SetWallpaperActivity extends Activity {
 				Log.d(TAG, "The current image size is already selected.");
 			}
 		}
+	}
+
+	public ImageView getPreviousClickedImageView() {
+		return previousClickedImageView;
+	}
+
+	public void setPreviousClickedImageView(ImageView previousClickedImageView) {
+		this.previousClickedImageView = previousClickedImageView;
+	}
+
+	/**
+	 * Update the launch count and show rate dialog, if the count equals the
+	 * preset value
+	 */
+	private void showRateDialog() {
+		SharedPreferences prefs = getSharedPreferences(
+				MultiBackgroundConstants.PREFERENCES_FILE_NAME, 0);
+		if (prefs.getBoolean(getResources().getString(
+				R.string.never_show_again_preference_string), false)) {
+			return;
+		}
+		SharedPreferences.Editor editor = prefs.edit();
+		editor.putBoolean(getResources().getString(
+				R.string.never_show_again_preference_string), false);
+		editor.commit();
+		// Increment launch counter
+		long launchCount = prefs.getLong(getResources().getString(
+				R.string.launch_count_preference_string), 0) + 1;
+		Log.i(this.getLocalClassName(), "Number of Launches = "
+				+ getResources().getInteger(R.integer.number_of_launches));
+		if (launchCount >= getResources().getInteger(
+				R.integer.number_of_launches)) {
+			showRateDialog(SetWallpaperActivity.this, editor);
+		} else {
+			editor.putLong(getResources().getString(
+					R.string.launch_count_preference_string), launchCount);
+			editor.commit();
+		}
+	}
+
+	/**
+	 * Show the rate dialog
+	 * 
+	 * @param mContext
+	 * @param editor
+	 */
+	private void showRateDialog(final Context mContext,
+			final SharedPreferences.Editor editor) {
+		final Dialog dialog = new Dialog(mContext);
+		dialog.setTitle(getResources()
+				.getString(R.string.title_rate_app_dialog));
+		dialog.getWindow().setBackgroundDrawableResource(R.color.Black);
+
+		LayoutInflater inflater = getLayoutInflater();
+
+		final View dialogView = inflater
+				.inflate(R.layout.rate_app_dialog, null);
+		dialog.setContentView(dialogView);
+
+		Button rateAppButton = (Button) dialogView
+				.findViewById(R.id.rateAppButton);
+		rateAppButton.setOnClickListener(new OnClickListener() {
+			public void onClick(View v) {
+				/*
+				 * Set the launch count to negative so that it takes double to
+				 * show the rate app dialog next time, if the use clicks on Rate
+				 * button. This is to make sure that if the user clicks on Rate
+				 * button, but does not actually rates it, the user would be
+				 * asked again. But if the user has rated the App, he/she can
+				 * then click on never rate again to stop the dialog to appear.
+				 */
+				editor.putLong(getResources().getString(
+						R.string.launch_count_preference_string), (-1)
+						* getResources().getInteger(
+								R.integer.number_of_launches));
+				editor.commit();
+				mContext.startActivity(new Intent(Intent.ACTION_VIEW, Uri
+						.parse("market://details?id="
+								+ MultiBackgroundConstants.APP_PACKAGE)));
+
+				dialog.dismiss();
+			}
+		});
+
+		Button rateAppLaterButton = (Button) dialogView
+				.findViewById(R.id.rateAppLaterButton);
+		rateAppLaterButton.setOnClickListener(new OnClickListener() {
+			public void onClick(View v) {
+				editor.putLong(getResources().getString(
+						R.string.launch_count_preference_string), 0);
+				editor.commit();
+				dialog.dismiss();
+			}
+		});
+
+		Button neverShowAgainButton = (Button) dialogView
+				.findViewById(R.id.neverShowAgainButton);
+		neverShowAgainButton.setOnClickListener(new OnClickListener() {
+			public void onClick(View v) {
+				if (editor != null) {
+					editor.putBoolean(getResources().getString(
+							R.string.never_show_again_preference_string), true);
+					editor.commit();
+				}
+				dialog.dismiss();
+			}
+		});
+		dialog.show();
 	}
 }

@@ -12,53 +12,76 @@ public final class R {
     }
     public static final class color {
         public static final int Black=0x7f050000;
+        public static final int Blue=0x7f050004;
+        public static final int Gray=0x7f050005;
         public static final int Purple=0x7f050003;
         public static final int SpeedDialBackground=0x7f050001;
         public static final int White=0x7f050002;
     }
     public static final class drawable {
-        public static final int crop_image_rectangle=0x7f020000;
-        public static final int default_background=0x7f020001;
-        public static final int delete_bin=0x7f020002;
-        public static final int green_background=0x7f020003;
-        public static final int green_circle_plus_image=0x7f020004;
+        public static final int add_image_icon=0x7f020000;
+        public static final int background1=0x7f020001;
+        public static final int border=0x7f020002;
+        public static final int default_wallpaper=0x7f020003;
+        public static final int delete_bin=0x7f020004;
         public static final int ic_action_search=0x7f020005;
         public static final int ic_launcher=0x7f020006;
-        public static final int image_not_found=0x7f020007;
-        public static final int open_delete_bin=0x7f020008;
-        public static final int red_background=0x7f020009;
-        public static final int small_green_circle_plus_image=0x7f02000a;
+        public static final int image_border=0x7f020007;
+        public static final int image_not_found=0x7f020008;
+        public static final int multibackground_icon=0x7f020009;
+        public static final int open_delete_bin=0x7f02000a;
+        public static final int set_wallpaper_button=0x7f02000b;
+        public static final int set_wallpaper_button_pressed=0x7f02000c;
     }
     public static final class id {
-        public static final int adView=0x7f08000b;
-        public static final int adsScrollViewRadioGroup=0x7f080005;
-        public static final int button1=0x7f080000;
-        public static final int cropCurrentImageView=0x7f080004;
-        public static final int cropImageRelativeLayout=0x7f080003;
-        public static final int deleteImageView=0x7f080002;
-        public static final int horizontalScrollView=0x7f080009;
-        public static final int linearLayoutInsideHsv=0x7f08000a;
-        public static final int plusImageView=0x7f080001;
-        public static final int radio_best_fit=0x7f080008;
-        public static final int radio_cover_full_screen=0x7f080007;
-        public static final int radio_image_size_group=0x7f080006;
+        public static final int adView=0x7f09000c;
+        public static final int adsScrollViewRadioGroup=0x7f090006;
+        public static final int button1=0x7f090001;
+        public static final int cropCurrentImageView=0x7f090005;
+        public static final int cropImageRelativeLayout=0x7f090004;
+        public static final int deleteImageView=0x7f090003;
+        public static final int horizontalScrollView=0x7f09000a;
+        public static final int linearLayoutInsideHsv=0x7f09000b;
+        public static final int neverShowAgainButton=0x7f090012;
+        public static final int plusImageView=0x7f090002;
+        public static final int radio_best_fit=0x7f090009;
+        public static final int radio_cover_full_screen=0x7f090008;
+        public static final int radio_image_size_group=0x7f090007;
+        public static final int rateAppButton=0x7f090010;
+        public static final int rateAppDialogMessage=0x7f09000d;
+        public static final int rateAppLaterButton=0x7f090011;
+        public static final int rateButtons=0x7f09000f;
+        public static final int setAddDeleteViews=0x7f090000;
+        public static final int thanksForYourSupportMessage=0x7f09000e;
+    }
+    public static final class integer {
+        public static final int number_of_launches=0x7f060000;
     }
     public static final class layout {
         public static final int main=0x7f030000;
+        public static final int rate_app_dialog=0x7f030001;
     }
     public static final class string {
-        public static final int app_name=0x7f060000;
-        public static final int best_fit=0x7f060007;
-        public static final int crop_current_image_description=0x7f060005;
-        public static final int current_image_rectangle_description=0x7f060008;
-        public static final int delete_image_description=0x7f060003;
-        public static final int full_screen=0x7f060006;
-        public static final int plus_image_description=0x7f060002;
-        public static final int set_wallpaper_button_description=0x7f060004;
-        public static final int wallpaper_description=0x7f060001;
+        public static final int app_name=0x7f070000;
+        public static final int best_fit=0x7f070007;
+        public static final int crop_current_image_description=0x7f070005;
+        public static final int current_image_rectangle_description=0x7f070008;
+        public static final int delete_image_description=0x7f070003;
+        public static final int full_screen=0x7f070006;
+        public static final int launch_count_preference_string=0x7f07000b;
+        public static final int message_rate_app_dialog=0x7f07000d;
+        public static final int message_thanks_for_your_support=0x7f07000e;
+        public static final int never_show_again_button_string=0x7f070009;
+        public static final int never_show_again_preference_string=0x7f07000a;
+        public static final int plus_image_description=0x7f070002;
+        public static final int rate_app_button_string=0x7f07000f;
+        public static final int rate_app_later_button_string=0x7f070010;
+        public static final int set_wallpaper_button_description=0x7f070004;
+        public static final int title_rate_app_dialog=0x7f07000c;
+        public static final int wallpaper_description=0x7f070001;
     }
     public static final class style {
-        public static final int AppTheme=0x7f070000;
+        public static final int AppTheme=0x7f080000;
     }
     public static final class xml {
         public static final int mywallpaper=0x7f040000;

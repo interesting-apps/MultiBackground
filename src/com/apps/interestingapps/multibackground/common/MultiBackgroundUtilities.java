@@ -67,6 +67,7 @@ public class MultiBackgroundUtilities {
 		// Calculate inSampleSize
 		options.inSampleSize = calculateInSampleSize(options, maxWidth,
 				maxHeight);
+		double aspectRatio = options.outWidth * 1.0 / options.outHeight;
 
 		// Decode bitmap with inSampleSize set
 		options.inJustDecodeBounds = false;
@@ -84,8 +85,10 @@ public class MultiBackgroundUtilities {
 			}
 		} while (compressedBitmap == null && retry < 5);
 
+		int[] scaledWidthHeight = getScaledWidthHeight(compressedBitmap,
+				ImageSize.BEST_FIT, aspectRatio, maxWidth, maxHeight);
 		Bitmap resizedBitmap = Bitmap.createScaledBitmap(compressedBitmap,
-				maxWidth, maxHeight, true);
+				scaledWidthHeight[0], scaledWidthHeight[1], true);
 		if (resizedBitmap != compressedBitmap) {
 			compressedBitmap.recycle();
 		}
@@ -257,7 +260,8 @@ public class MultiBackgroundUtilities {
 		} else {
 			int rotationRequired = MultiBackgroundUtilities
 					.getRequiredimageRotation(path);
-			aspectRatio = MultiBackgroundUtilities.getImageAspectRatio(options, rotationRequired);
+			aspectRatio = MultiBackgroundUtilities.getImageAspectRatio(options,
+					rotationRequired);
 		}
 		return aspectRatio;
 	}

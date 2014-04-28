@@ -9,5 +9,13 @@
     <string name="full_screen">Cover Full Screen</string>
     <string name="best_fit">Best Fit</string>
     <string name="current_image_rectangle_description">Best Fit</string>
+    <string name="never_show_again_button_string">Never ask again!</string>
+    <string name="never_show_again_preference_string">never_show_again</string>
+    <string name="launch_count_preference_string">launch_count</string>
+    <string name="title_rate_app_dialog">Please rate MultiBackground !</string>
+    <string name="message_rate_app_dialog">Please take a moment to rate MultiBackground, to help us improve.</string>
+    <string name="message_thanks_for_your_support">Thanks for your support!</string>
+    <string name="rate_app_button_string">Rate it!</string>
+    <string name="rate_app_later_button_string">Later!</string>
 
 </resources>

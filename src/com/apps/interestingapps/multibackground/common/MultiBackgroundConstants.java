@@ -17,4 +17,6 @@ public class MultiBackgroundConstants {
 	
 	public static final int TEMP_UINQUE_IMAGE_NUMBER = MultiBackgroundConstants.MAX_IMAGES + 2;
 	public static final int DEFAULT_NEXT_IMAGE_NUMBER = -1;
+	public static final String APP_PACKAGE = "com.apps.interestingapps.multibackground";
+	public static final String PREFERENCES_FILE_NAME = APP_PACKAGE + ".preferences";
 }
