@@ -3,3 +3,5 @@ Verify the following before publishing the app:
 - Android debugging tag should be removed from Android-Manifest.xml file
 - Update the parameters.xml file to make number of launches as 10
 - Uncomment the code to set orientation to PORTRAIT in SetWallpaperActivity.java
+
+Released Version 1.0 on 04/28/2014
