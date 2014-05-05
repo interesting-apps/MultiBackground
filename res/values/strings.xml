@@ -17,5 +17,9 @@
     <string name="message_thanks_for_your_support">Thanks for your support!</string>
     <string name="rate_app_button_string">Rate it!</string>
     <string name="rate_app_later_button_string">Later!</string>
+    <string name="delete">Delete Image</string>
+    <string name="preference_summary">Select the order in which you want images to be set as wallpaper</string>
+    <string name="preference_title">Set Image order</string>
+    <string name="preference_key">image_order</string>
 
 </resources>

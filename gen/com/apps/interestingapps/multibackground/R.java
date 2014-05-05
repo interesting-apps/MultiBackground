@@ -8,15 +8,21 @@
 package com.apps.interestingapps.multibackground;
 
 public final class R {
+    public static final class array {
+        public static final int listArray=0x7f050000;
+        public static final int listArray7=0x7f050002;
+        public static final int listValues=0x7f050001;
+        public static final int listValues7=0x7f050003;
+    }
     public static final class attr {
     }
     public static final class color {
-        public static final int Black=0x7f050000;
-        public static final int Blue=0x7f050004;
-        public static final int Gray=0x7f050005;
-        public static final int Purple=0x7f050003;
-        public static final int SpeedDialBackground=0x7f050001;
-        public static final int White=0x7f050002;
+        public static final int Black=0x7f060000;
+        public static final int Blue=0x7f060004;
+        public static final int Gray=0x7f060005;
+        public static final int Purple=0x7f060003;
+        public static final int SpeedDialBackground=0x7f060001;
+        public static final int White=0x7f060002;
     }
     public static final class drawable {
         public static final int add_image_icon=0x7f020000;
@@ -34,56 +40,66 @@ public final class R {
         public static final int set_wallpaper_button_pressed=0x7f02000c;
     }
     public static final class id {
-        public static final int adView=0x7f09000c;
-        public static final int adsScrollViewRadioGroup=0x7f090006;
-        public static final int button1=0x7f090001;
-        public static final int cropCurrentImageView=0x7f090005;
-        public static final int cropImageRelativeLayout=0x7f090004;
-        public static final int deleteImageView=0x7f090003;
-        public static final int horizontalScrollView=0x7f09000a;
-        public static final int linearLayoutInsideHsv=0x7f09000b;
-        public static final int neverShowAgainButton=0x7f090012;
-        public static final int plusImageView=0x7f090002;
-        public static final int radio_best_fit=0x7f090009;
-        public static final int radio_cover_full_screen=0x7f090008;
-        public static final int radio_image_size_group=0x7f090007;
-        public static final int rateAppButton=0x7f090010;
-        public static final int rateAppDialogMessage=0x7f09000d;
-        public static final int rateAppLaterButton=0x7f090011;
-        public static final int rateButtons=0x7f09000f;
-        public static final int setAddDeleteViews=0x7f090000;
-        public static final int thanksForYourSupportMessage=0x7f09000e;
+        public static final int adView=0x7f0b000c;
+        public static final int adsScrollViewRadioGroup=0x7f0b0006;
+        public static final int button1=0x7f0b0001;
+        public static final int cropCurrentImageView=0x7f0b0005;
+        public static final int cropImageRelativeLayout=0x7f0b0004;
+        public static final int deleteImageView=0x7f0b0003;
+        public static final int deleteMenuItem=0x7f0b0013;
+        public static final int horizontalScrollView=0x7f0b000a;
+        public static final int linearLayoutInsideHsv=0x7f0b000b;
+        public static final int neverShowAgainButton=0x7f0b0012;
+        public static final int plusImageView=0x7f0b0002;
+        public static final int radio_best_fit=0x7f0b0009;
+        public static final int radio_cover_full_screen=0x7f0b0008;
+        public static final int radio_image_size_group=0x7f0b0007;
+        public static final int rateAppButton=0x7f0b0010;
+        public static final int rateAppDialogMessage=0x7f0b000d;
+        public static final int rateAppLaterButton=0x7f0b0011;
+        public static final int rateButtons=0x7f0b000f;
+        public static final int setAddDeleteViews=0x7f0b0000;
+        public static final int thanksForYourSupportMessage=0x7f0b000e;
     }
     public static final class integer {
-        public static final int number_of_launches=0x7f060000;
+        public static final int number_of_launches=0x7f070000;
     }
     public static final class layout {
         public static final int main=0x7f030000;
         public static final int rate_app_dialog=0x7f030001;
     }
+    public static final class menu {
+        public static final int mbi_context_menu=0x7f0a0000;
+    }
     public static final class string {
-        public static final int app_name=0x7f070000;
-        public static final int best_fit=0x7f070007;
-        public static final int crop_current_image_description=0x7f070005;
-        public static final int current_image_rectangle_description=0x7f070008;
-        public static final int delete_image_description=0x7f070003;
-        public static final int full_screen=0x7f070006;
-        public static final int launch_count_preference_string=0x7f07000b;
-        public static final int message_rate_app_dialog=0x7f07000d;
-        public static final int message_thanks_for_your_support=0x7f07000e;
-        public static final int never_show_again_button_string=0x7f070009;
-        public static final int never_show_again_preference_string=0x7f07000a;
-        public static final int plus_image_description=0x7f070002;
-        public static final int rate_app_button_string=0x7f07000f;
-        public static final int rate_app_later_button_string=0x7f070010;
-        public static final int set_wallpaper_button_description=0x7f070004;
-        public static final int title_rate_app_dialog=0x7f07000c;
-        public static final int wallpaper_description=0x7f070001;
+        public static final int app_name=0x7f080000;
+        public static final int best_fit=0x7f080007;
+        public static final int crop_current_image_description=0x7f080005;
+        public static final int current_image_rectangle_description=0x7f080008;
+        public static final int delete=0x7f080011;
+        public static final int delete_image_description=0x7f080003;
+        public static final int full_screen=0x7f080006;
+        public static final int launch_count_preference_string=0x7f08000b;
+        public static final int message_rate_app_dialog=0x7f08000d;
+        public static final int message_thanks_for_your_support=0x7f08000e;
+        public static final int never_show_again_button_string=0x7f080009;
+        public static final int never_show_again_preference_string=0x7f08000a;
+        public static final int plus_image_description=0x7f080002;
+        public static final int preference_key=0x7f080014;
+        public static final int preference_summary=0x7f080012;
+        public static final int preference_title=0x7f080013;
+        public static final int rate_app_button_string=0x7f08000f;
+        public static final int rate_app_later_button_string=0x7f080010;
+        public static final int set_wallpaper_button_description=0x7f080004;
+        public static final int title_rate_app_dialog=0x7f08000c;
+        public static final int wallpaper_description=0x7f080001;
     }
     public static final class style {
-        public static final int AppTheme=0x7f080000;
+        public static final int AppTheme=0x7f090000;
     }
     public static final class xml {
         public static final int mywallpaper=0x7f040000;
+        public static final int prefs=0x7f040001;
+        public static final int prefs7=0x7f040002;
     }
 }

@@ -1,0 +1,8 @@
+<resources>
+<string-array name="listArray7">
+	<item>Random order</item>
+</string-array>
+<string-array name="listValues7">
+    <item>2</item>
+</string-array>
+</resources>

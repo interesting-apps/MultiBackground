@@ -1,14 +1,14 @@
-With MultiBackground, it is now possible to change the monotonous and boring experience of using Android phones into a fun and exciting one, and that too by simply changing your home screen wallpaper. You can now move away from looking at the same home screen background everytime, towards enjoying a different wallpaper with just a simple swipe on the home screen. Multibackground lets you choose multiple wallpapers for home screen and will change the wallpaper anytime you swipe horizontally on your home screen. Now, change how your home screen looks with just a single swipe on the screen. If ever you feel bored looking at the same wallpaper over and over again, just swipe and Multibackground will take case of the rest.
+With MultiBackground, it is now possible to change the monotonous and boring experience of using Android phones into a fun and exciting one, and that too by simply changing your home screen wallpaper. You can now move away from looking at the same home screen background everytime, towards enjoying a different wallpaper with just a simple swipe on the home screen. MultiBackground lets you choose multiple wallpapers for home screen and will change the wallpaper anytime you swipe horizontally on your home screen. If ever you feel bored looking at the same wallpaper over and over again, just swipe and MultiBackground will take care of the rest.
 
-Its really easy to set multiple wallpapers using MultiBackground, just following these simple steps:
-1. Open the app and add images that you would like to set as wallpaper
-2. Tap on Set Wallpaper image in the app and select the entry "MultiBackground"
+Its really easy to set multiple background wallpapers using MultiBackground, just following these simple steps:
+1. Open the app and add multiple images that you would like to set as wallpaper
+2. Tap on Set Wallpaper image in the app and select the entry "MultiBackground" from the list of live wallpapers that is shown.
 3. Tap on Set Wallpaper button at the bottom.
 
-Thats it! With just 3 simple steps, you can completely revolutionalize your home screen and the way you view things on Android. 
+Thats it! With just 3 simple steps, you can completely revolutionize your home screen and the way you view things on Android. 
 
 With MultiBackground you can:
 - Select multiple home screen wallpapers, that can be changed with just a simple horizontal swipe.
-- Drag and drop images to manage the order in which they are set as wallpaper
+- Drag and drop backgrounds to manage the order in which they are set as wallpapers. Select Random order in settings before setting live wallpaper, if you want MultiBackground to take care of image order while setting wallpapers
 - Set the size of images so as to get best look on the home screen
-- Drag and throw the images from the list into trash can, if you don't want them as wallpaper on your home screen. Don't worry, it won't delete the image from the phone. :)
+- Drag and discard the images from the list into trash can, if you don't want them as wallpaper. Don't worry, it won't delete the images from your phone. :)

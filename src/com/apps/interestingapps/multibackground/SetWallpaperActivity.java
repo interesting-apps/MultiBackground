@@ -3,6 +3,7 @@ package com.apps.interestingapps.multibackground;
 import java.util.ArrayList;
 import java.util.List;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Dialog;
 import android.app.WallpaperManager;
@@ -19,10 +20,15 @@ import android.os.Bundle;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.util.Log;
+import android.view.ContextMenu;
+import android.view.ContextMenu.ContextMenuInfo;
 import android.view.Display;
 import android.view.LayoutInflater;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.widget.Button;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
@@ -49,6 +55,7 @@ import com.google.ads.AdView;
  * Class to Set the live wallpaper and select images to be used in the live
  * wallpaper
  */
+@SuppressLint("NewApi")
 public class SetWallpaperActivity extends Activity {
 
 	private DatabaseHelper databaseHelper;
@@ -69,6 +76,7 @@ public class SetWallpaperActivity extends Activity {
 	private ImageView previousClickedImageView;
 	private int previousClickedImageIndex = 0;
 	private Button setWallpaperButton;
+	private ImageView longClickedImageView;
 
 	@SuppressWarnings("deprecation")
 	@Override
@@ -132,10 +140,6 @@ public class SetWallpaperActivity extends Activity {
 					halfScreenHeight, radioGroup);
 			onClick.onClick(imageViewList.get(previousClickedImageIndex));
 		}
-
-		// re.addTestDevice(AdRequest.TEST_EMULATOR);
-		// re.addTestDevice("134A570CAEC830760EF3144B1EED15A5");
-
 		adview = (AdView) findViewById(R.id.adView);
 		AdRequest re = new AdRequest();
 		adview.loadAd(re);
@@ -149,10 +153,50 @@ public class SetWallpaperActivity extends Activity {
 		plusImageView.setOnClickListener(new AddImageClickListener(this));
 		hsv = (HorizontalScrollView) findViewById(R.id.horizontalScrollView);
 		deleteImageView = (ImageView) findViewById(R.id.deleteImageView);
-		deleteImageView.setOnDragListener(new DragToDeleteListener(this));
+		if (Build.VERSION.SDK_INT >= 11) {
+			// Drag and Drop is available after API level 11
+			deleteImageView.setOnDragListener(new DragToDeleteListener(this));
+		}
 		currentImageView = (ImageView) findViewById(R.id.cropCurrentImageView);
 		radioGroup = (RadioGroup) findViewById(R.id.radio_image_size_group);
 		currentImageViewRelativeLayout = (RelativeLayout) findViewById(R.id.cropImageRelativeLayout);
+	}
+
+	/**
+	 * Method to create a context menu when a list item pressed for long
+	 */
+	public void onCreateContextMenu(ContextMenu menu,
+			View v,
+			ContextMenuInfo menuInfo) {
+		super.onCreateContextMenu(menu, v, menuInfo);
+		if (Build.VERSION.SDK_INT < 11) {
+			// Drag and Drop is not available before API level 11, so provide
+			// context menu to delete image
+			longClickedImageView = (ImageView)v;
+			MenuInflater inflater = getMenuInflater();
+			inflater.inflate(R.menu.mbi_context_menu, menu);
+			
+		}
+	}
+	
+	/**
+	 * Method to perform an action when an item on the context menu list is
+	 * clicked
+	 */
+	@Override
+	public boolean onContextItemSelected(MenuItem item) {
+		switch (item.getItemId()) {
+		case R.id.deleteMenuItem:
+			if(longClickedImageView != null) {
+				deleteImage(longClickedImageView);
+				longClickedImageView = null;
+			} else {
+				Log.d(TAG, "Long clicked image is null");
+			}
+			return true;
+		default:
+			return super.onContextItemSelected(item);
+		}
 	}
 
 	/**
@@ -230,33 +274,7 @@ public class SetWallpaperActivity extends Activity {
 		final boolean isKitKat = Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT;
 
 		// DocumentProvider
-		if(isKitKat) {
-//		if (isKitKat && DocumentsContract.isDocumentUri(context, uri)) {
-//			// ExternalStorageProvider
-//			if (isExternalStorageDocument(uri)) {
-//				final String docId = DocumentsContract.getDocumentId(uri);
-//				final String[] split = docId.split(":");
-//				final String type = split[0];
-//
-//				if ("primary".equalsIgnoreCase(type)) {
-//					return Environment.getExternalStorageDirectory() + "/"
-//							+ split[1];
-//				}
-//
-//				// TODO handle non-primary volumes
-//			}
-//			// DownloadsProvider
-//			else if (isDownloadsDocument(uri)) {
-//
-//				final String id = DocumentsContract.getDocumentId(uri);
-//				final Uri contentUri = ContentUris.withAppendedId(Uri
-//						.parse("content://downloads/public_downloads"), Long
-//						.valueOf(id));
-//
-//				return getDataColumn(context, contentUri, null, null);
-//			}
-//			// MediaProvider
-//			else 
+		if (isKitKat) {
 			if (isMediaDocument(uri)) {
 				final String docId = DocumentsContract.getDocumentId(uri);
 				final String[] split = docId.split(":");
@@ -277,7 +295,7 @@ public class SetWallpaperActivity extends Activity {
 				return getDataColumn(context, contentUri, selection,
 						selectionArgs);
 			}
-//		}
+			// }
 		}
 		// MediaStore (and general)
 		else if ("content".equalsIgnoreCase(uri.getScheme())) {
@@ -381,8 +399,14 @@ public class SetWallpaperActivity extends Activity {
 			mbi.setDeletedImage(true);
 		}
 		iv.setImageBitmap(bitmap);
-		iv.setOnDragListener(new MbiDragListener(this));
-		iv.setOnLongClickListener(new MbiLongClickListener(this));
+		if (Build.VERSION.SDK_INT >= 11) {
+			// Drag and Drop is available after API level 11
+			iv.setOnDragListener(new MbiDragListener(this));
+			iv.setOnLongClickListener(new MbiLongClickListener(this));
+		} else {
+			// Register for context menu to enable deletion of image
+			registerForContextMenu(iv);
+		}
 		iv.setOnClickListener(new MbiOnClickListener(this, mbi,
 				currentImageView, mbi.getPath(), halfScreenWidth,
 				halfScreenHeight, radioGroup));
@@ -413,7 +437,7 @@ public class SetWallpaperActivity extends Activity {
 	 * @param imageUri
 	 */
 	public void addNewImage(Uri imageUri) {
-//		String imagePath = getPath(imageUri);
+		// String imagePath = getPath(imageUri);
 		String imagePath = getPath(getApplicationContext(), imageUri);
 		Log.i(TAG, imagePath);
 		addNewImage(imagePath);

@@ -1,11 +1,17 @@
 package com.apps.interestingapps.multibackground;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.os.Build;
 import android.os.Handler;
+import android.preference.PreferenceManager;
 import android.service.wallpaper.WallpaperService;
 import android.util.Log;
 import android.view.Display;
@@ -18,6 +24,8 @@ import com.apps.interestingapps.multibackground.common.MultiBackgroundImage;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundUtilities;
 
 public class MyWallpaperService extends WallpaperService {
+
+	private static Random rand = new Random();
 
 	public Engine onCreateEngine() {
 		return new MyWallpaperEngine();
@@ -33,10 +41,13 @@ public class MyWallpaperService extends WallpaperService {
 		private double screenCoverageRequired;
 		private DatabaseHelper databaseHelper;
 		private List<MultiBackgroundImage> imageList;
+		private List<Integer> usedIntegers;
 		private int currentImageNumber = 0;
 		private static final String TAG = "MyWallpaperService";
 		private float actualDistanceX;
 		private Bitmap currentBitmap;
+
+		private int imageOrder = 1;
 
 		private final Runnable drawRunner = new Runnable() {
 
@@ -58,13 +69,11 @@ public class MyWallpaperService extends WallpaperService {
 			screenX = display.getWidth();
 			screenY = display.getHeight();
 			screenCoverageRequired = screenX * SCREEN_COVERAGE_FACTOR;
-			Log.i(TAG, "****Constructor called");
 		}
 
 		@Override
 		public void onCreate(SurfaceHolder surfaceHolder) {
 			super.onCreate(surfaceHolder);
-			Log.i(TAG, "On Create called");
 			setTouchEventsEnabled(true);
 			databaseHelper = DatabaseHelper
 					.initializeDatabase(getApplicationContext());
@@ -72,13 +81,24 @@ public class MyWallpaperService extends WallpaperService {
 				imageList = databaseHelper.getAllImages();
 			}
 			changeBackground = true;
+			usedIntegers = new ArrayList<Integer>();
+			Log.i(TAG, "On create called");
 			handler.post(drawRunner);
 		}
 
 		public void onVisibilityChanged(boolean visible) {
 			this.visible = visible;
-			Log.i(TAG, "Changed the visibility to: " + visible);
 			if (visible) {
+				SharedPreferences prefs = PreferenceManager
+						.getDefaultSharedPreferences(MyWallpaperService.this);
+				if(Build.VERSION.SDK_INT >= 11) {
+				imageOrder = Integer.parseInt(prefs.getString(getApplicationContext()
+						.getResources().getString(R.string.preference_key), "1"));
+				} else {
+					// Default number for API < 11 is Random
+					imageOrder = Integer.parseInt(prefs.getString(getApplicationContext()
+							.getResources().getString(R.string.preference_key), "2"));
+				}
 				handler.post(drawRunner);
 			} else {
 				handler.removeCallbacks(drawRunner);
@@ -86,7 +106,6 @@ public class MyWallpaperService extends WallpaperService {
 		}
 
 		public void onDestroy() {
-			Log.i(TAG, "Destroy app called");
 			if (databaseHelper != null) {
 				databaseHelper.closeDatabase();
 				handler.removeCallbacks(drawRunner);
@@ -125,21 +144,19 @@ public class MyWallpaperService extends WallpaperService {
 							|| threshold >= THRESHOLD_FOR_SCREEN_CHANGE) {
 						/*
 						 * TODO: take into consideration :
-						 *
+						 * 
 						 * 1. long press can be done before/after down/up events
 						 * --> Checked if distance is greater than half the
 						 * screen size, it will change the home screen
-						 *
+						 * 
 						 * 2. Current screen can be the last screen in the
 						 * direction of movement --> Currently couldn't find a
 						 * better way, so changing the feature of the app.
-						 *
+						 * 
 						 * 3. Multitouch events
 						 */
 						changeBackground = true;
 						draw();
-					} else {
-						Log.i(TAG, "Too Slow: " + threshold);
 					}
 				}
 				break;
@@ -188,7 +205,9 @@ public class MyWallpaperService extends WallpaperService {
 					try {
 						scaledBitmap = MultiBackgroundUtilities
 								.scaleDownImageAndDecode(imagePath, screenX,
-										screenY, imageList.get(currentImageNumber).getImageSize());
+										screenY, imageList.get(
+												currentImageNumber)
+												.getImageSize());
 					} catch (Exception e) {
 						Log.d(TAG,
 								"Unable to load image for the given path due to: "
@@ -233,16 +252,47 @@ public class MyWallpaperService extends WallpaperService {
 			if (imageList.size() == 0) {
 				currentImageNumber = -1;
 			} else {
-				int delta = -1;
-				if (actualDistanceX < 0) {
-					delta = 1;
+				int newImageNumber = 0;
+				switch (imageOrder) {
+				case 1:
+					// Maintain image order
+					int delta = -1;
+					if (actualDistanceX < 0) {
+						delta = 1;
+					}
+					newImageNumber = currentImageNumber + delta;
+					break;
+
+				case 2:
+					// Random order
+					newImageNumber = getRandomNumber(imageList, usedIntegers);
+					break;
+				default:
+					break;
 				}
-				int newImageNumber = currentImageNumber + delta;
 				if (newImageNumber < 0) {
 					newImageNumber = imageList.size() - 1;
 				}
 				currentImageNumber = newImageNumber % imageList.size();
 			}
+
+		}
+
+		private int getRandomNumber(List<MultiBackgroundImage> mbiList,
+				List<Integer> usedIntegers) {
+			if (usedIntegers.size() >= mbiList.size()) {
+				Log.d(TAG, "Showed all the images. Resetting the list");
+				usedIntegers.clear();
+			}
+			int high = mbiList.size() - 1;
+			int low = 0;
+			int randomNumber = 0;
+			while (usedIntegers.contains(randomNumber)) {
+				randomNumber = rand.nextInt((high - low) + 1) + low;
+			}
+			usedIntegers.add(randomNumber);
+			return randomNumber;
+
 		}
 	}
 }
