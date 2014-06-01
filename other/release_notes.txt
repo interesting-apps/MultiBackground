@@ -5,3 +5,4 @@ Verify the following before publishing the app:
 - Uncomment the code to set orientation to PORTRAIT in SetWallpaperActivity.java
 
 Released Version 1.0 on 04/28/2014
+Released Version 1.0.1 on 05/04/2014

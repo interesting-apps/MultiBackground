@@ -215,6 +215,9 @@ public class SetWallpaperActivity extends Activity {
 	}
 
 	public void onClick(View view) {
+		Toast.makeText(getApplicationContext(),
+				"Please select MultiBackground from the shown list.",
+				Toast.LENGTH_LONG).show();
 		setWallpaperButton
 				.setBackgroundResource(R.drawable.set_wallpaper_button_pressed);
 		Intent intent = new Intent(
