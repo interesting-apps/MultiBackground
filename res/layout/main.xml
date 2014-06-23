@@ -110,7 +110,7 @@
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         ads:adSize="BANNER"
-        ads:adUnitId="a1528479ac54bab"
+        ads:adUnitId="ca-app-pub-7296977648075046/1283983215"
         ads:refreshInterval="60" />
 
 </RelativeLayout>
