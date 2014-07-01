@@ -12,3 +12,5 @@ With MultiBackground you can:
 - Drag and drop backgrounds to manage the order in which they are set as wallpapers. Select Random order in settings before setting live wallpaper, if you want MultiBackground to take care of image order while setting wallpapers
 - Set the size of images so as to get best look on the home screen
 - Drag and discard the images from the list into trash can, if you don't want them as wallpaper. Don't worry, it won't delete the images from your phone. :)
+
+Note: Adding images belonging to web albums like Google+, Picasa, Dropbox etc is not supported.
