@@ -103,14 +103,24 @@
         </HorizontalScrollView>
     </LinearLayout>
 
-    <com.google.ads.AdView
+    <com.google.android.gms.ads.AdView
+        xmlns:ads="http://schemas.android.com/apk/res-auto"
+        android:id="@+id/adView"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        ads:adSize="BANNER"
+        ads:adUnitId="ca-app-pub-4531130906794046/8015440616"
+        />
+
+    <!-- <com.google.ads.AdView
         xmlns:ads="http://schemas.android.com/apk/lib/com.google.ads"
         android:id="@+id/adView"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         ads:adSize="BANNER"
-        ads:adUnitId="ca-app-pub-7296977648075046/1283983215"
-        ads:refreshInterval="60" />
+        ads:adUnitId="ca-app-pub-4531130906794046/8015440616"
+        ads:refreshInterval="60" /> -->
 
 </RelativeLayout>

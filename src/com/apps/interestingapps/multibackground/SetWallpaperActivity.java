@@ -49,8 +49,8 @@ import com.apps.interestingapps.multibackground.listeners.DragToDeleteListener;
 import com.apps.interestingapps.multibackground.listeners.MbiDragListener;
 import com.apps.interestingapps.multibackground.listeners.MbiLongClickListener;
 import com.apps.interestingapps.multibackground.listeners.MbiOnClickListener;
-import com.google.ads.AdRequest;
-import com.google.ads.AdView;
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.AdView;
 
 /**
  * Class to Set the live wallpaper and select images to be used in the live
@@ -141,9 +141,25 @@ public class SetWallpaperActivity extends Activity {
 					halfScreenHeight, radioGroup);
 			onClick.onClick(imageViewList.get(previousClickedImageIndex));
 		}
+		/*
+		 * Android 4.0 device id: 64FFE02AABF389054771188E3CF39B63
+		 * Sony Xperia X10 device id: 080A4A2357E9089FDAB344624A7181F5
+		 */
 		adview = (AdView) findViewById(R.id.adView);
-		AdRequest re = new AdRequest();
-		adview.loadAd(re);
+
+		/*
+		 * TODO: Uncomment it while running tests. Comment this part while
+		 * creating APK for production
+		 */
+		// AdRequest adRequest = new AdRequest.Builder().addTestDevice(
+		// AdRequest.DEVICE_ID_EMULATOR)
+		// .addTestDevice( "080A4A2357E9089FDAB344624A7181F5").build();
+
+		AdRequest adRequest = new AdRequest.Builder().build();
+		// Create an ad request. Check logcat output for the hashed device ID to
+		// get test ads on a physical device.
+
+		adview.loadAd(adRequest);
 		showRateDialog();
 	}
 
