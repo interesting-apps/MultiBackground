@@ -7,6 +7,7 @@ import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import android.annotation.SuppressLint;
 import android.content.ContentValues;
 import android.content.Context;
@@ -15,6 +16,7 @@ import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
+import android.widget.Toast;
 
 /**
  * Class to handle database creation and updates
@@ -28,10 +30,25 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 	private volatile boolean isDatabaseUpdated = false;
 	private static int openConnections = 0;
 
-	private String[] allColumns = { MultiBackgroundConstants.ID_COLUMN,
+	private String[] imagePathAllColumns = {
+			MultiBackgroundConstants.ID_COLUMN,
 			MultiBackgroundConstants.NEXT_IMAGE_NUMBER_COLUMN,
 			MultiBackgroundConstants.PATH_COLUMN,
-			MultiBackgroundConstants.IMAGE_SIZE_COLUMN};
+			MultiBackgroundConstants.IMAGE_SIZE_COLUMN };
+
+	private String[] imageCropAllColumns = {
+			MultiBackgroundConstants.ID_COLUMN,
+			MultiBackgroundConstants.IMAGE_ID_COLUMN,
+			MultiBackgroundConstants.CROP_LEFT_COLUMN,
+			MultiBackgroundConstants.CROP_TOP_COLUMN,
+			MultiBackgroundConstants.CROP_LENGTH_COLUMN,
+			MultiBackgroundConstants.CROP_HEIGHT_COLUMN,
+			MultiBackgroundConstants.IMAGE_OFFSET_LEFT_COLUMN,
+			MultiBackgroundConstants.IMAGE_OFFSET_TOP_COLUMN };
+
+	private String[] cropButtonDimensionsAllColumns = {
+			MultiBackgroundConstants.CROP_BUTTON_LENGTH_COLUMN,
+			MultiBackgroundConstants.CROP_BUTTON_HEIGHT_COLUMN };
 
 	private DatabaseHelper(Context context) {
 		super(context, MultiBackgroundConstants.DATABASE_NAME, null,
@@ -74,16 +91,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
 	}
 
-	@Override
-	public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-
-	}
-
-	public boolean isDatabaseUpdated() {
+	public synchronized boolean isDatabaseUpdated() {
 		return isDatabaseUpdated;
 	}
 
-	public void setDatabaseUpdated(boolean isDatabaseUpdated) {
+	public synchronized void setDatabaseUpdated(boolean isDatabaseUpdated) {
 		this.isDatabaseUpdated = isDatabaseUpdated;
 	}
 
@@ -125,13 +137,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		try {
 			String myPath = MultiBackgroundConstants.DB_PATH
 					+ MultiBackgroundConstants.DATABASE_NAME;
-			checkDB = SQLiteDatabase.openDatabase(myPath, null,
-					SQLiteDatabase.OPEN_READONLY);
+			checkDB = getReadableDatabase();
+			// checkDB = SQLiteDatabase.openDatabase(myPath, null,
+			// SQLiteDatabase.OPEN_READONLY);
 		} catch (Exception e) {
 			// Some error occurred. Override the existing database to avoid
 			// errors
 			dbExist = false;
-			e.printStackTrace();
 		}
 		if (checkDB != null) {
 			String query = "SELECT * FROM SQLITE_MASTER";
@@ -201,7 +213,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 				+ MultiBackgroundConstants.DATABASE_NAME;
 		database = SQLiteDatabase.openDatabase(myPath, null,
 				SQLiteDatabase.OPEN_READWRITE);
-
+		database.execSQL(MultiBackgroundConstants.ENABLE_FOREIGN_KEY_QUERY);
+		upgradeToLatestDatabaseVersion(database);
 	}
 
 	/**
@@ -225,7 +238,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 	public String getImagePath(int imageId) {
 		String pathToImage = null;
 		Cursor recordCursor = database.query(
-				MultiBackgroundConstants.IMAGE_PATH_TABLE, allColumns,
+				MultiBackgroundConstants.IMAGE_PATH_TABLE, imagePathAllColumns,
 				MultiBackgroundConstants.ID_COLUMN + "= ?",
 				new String[] { Integer.toString(imageId) }, null, null, null);
 		if (recordCursor.moveToFirst()) {
@@ -263,7 +276,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
 	public Cursor getAllRows() {
 		return database.query(MultiBackgroundConstants.IMAGE_PATH_TABLE,
-				allColumns, null, null, null, null, null);
+				imagePathAllColumns, null, null, null, null, null);
 	}
 
 	/**
@@ -311,7 +324,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			values.put(MultiBackgroundConstants.NEXT_IMAGE_NUMBER_COLUMN,
 					MultiBackgroundConstants.DEFAULT_NEXT_IMAGE_NUMBER);
 			values.put(MultiBackgroundConstants.PATH_COLUMN, path);
-			values.put(MultiBackgroundConstants.IMAGE_SIZE_COLUMN, MultiBackgroundImage.ImageSize.BEST_FIT.toString());
+			values.put(MultiBackgroundConstants.IMAGE_SIZE_COLUMN,
+					MultiBackgroundImage.ImageSize.BEST_FIT.toString());
 			int insertId = (int) database.insert(
 					MultiBackgroundConstants.IMAGE_PATH_TABLE, null, values);
 			if (insertId < 0) {
@@ -334,7 +348,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 				if (currentId == insertId) {
 					continue;
 				}
-				updateNextImageNumber(currentId, (int) insertId);
+				updateNextImageNumber(currentId, insertId);
 			}
 			database.setTransactionSuccessful();
 			isTransactionSuccessful = true;
@@ -500,7 +514,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		 * biggerIndex
 		 */
 		Cursor rangeValueCursor = database.query(
-				MultiBackgroundConstants.IMAGE_PATH_TABLE, allColumns,
+				MultiBackgroundConstants.IMAGE_PATH_TABLE, imagePathAllColumns,
 				MultiBackgroundConstants.NEXT_IMAGE_NUMBER_COLUMN + " > ? AND "
 						+ MultiBackgroundConstants.NEXT_IMAGE_NUMBER_COLUMN
 						+ " <  ?", new String[] {
@@ -546,7 +560,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 	 */
 	private Cursor getRowsByNextImageNumber(int nextImageNumber) {
 		Cursor valueCursor = database.query(
-				MultiBackgroundConstants.IMAGE_PATH_TABLE, allColumns,
+				MultiBackgroundConstants.IMAGE_PATH_TABLE, imagePathAllColumns,
 				MultiBackgroundConstants.NEXT_IMAGE_NUMBER_COLUMN + " = ? ",
 				new String[] { Integer.toString(nextImageNumber) }, null, null,
 				null, null);
@@ -555,7 +569,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
 	public int getIdWithNextImageNumber(int nextImageNumber) {
 		Cursor valueCursor = database.query(
-				MultiBackgroundConstants.IMAGE_PATH_TABLE, allColumns,
+				MultiBackgroundConstants.IMAGE_PATH_TABLE, imagePathAllColumns,
 				MultiBackgroundConstants.NEXT_IMAGE_NUMBER_COLUMN + " = ? ",
 				new String[] { Integer.toString(nextImageNumber) }, null, null,
 				null, null);
@@ -618,11 +632,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		}
 		return true;
 	}
-	
-	public int updateImageSize(int _id, MultiBackgroundImage.ImageSize imageSize) {
+
+	public int
+			updateImageSize(int _id, MultiBackgroundImage.ImageSize imageSize) {
 		ContentValues values = new ContentValues();
-		values.put(MultiBackgroundConstants.IMAGE_SIZE_COLUMN,
-				imageSize.toString());
+		values.put(MultiBackgroundConstants.IMAGE_SIZE_COLUMN, imageSize
+				.toString());
 		int rowsAffected = database.update(
 				MultiBackgroundConstants.IMAGE_PATH_TABLE, values,
 				MultiBackgroundConstants.ID_COLUMN + "=?",
@@ -630,10 +645,226 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		if (rowsAffected < 1) {
 			Log.e(TAG, "Unable to locate a row with id: " + _id);
 		} else {
-			Log.d(TAG, "Updated the ImageSize for row with id:" + _id
-					+ " to " + imageSize);
+			Log.d(TAG, "Updated the ImageSize for row with id:" + _id + " to "
+					+ imageSize);
 			isDatabaseUpdated = true;
 		}
 		return rowsAffected;
 	}
+
+	public MultiBackgroundCropRectangle addCropImageData(int imageId,
+			int left,
+			int top,
+			int length,
+			int height,
+			int imageOffsetLeft,
+			int imageOffsetTop) {
+
+		MultiBackgroundCropRectangle newCropRectangle = null;
+		database.beginTransaction();
+		boolean isTransactionSuccessful = false;
+		try {
+			ContentValues values = new ContentValues();
+			values.put(MultiBackgroundConstants.IMAGE_ID_COLUMN, imageId);
+			values.put(MultiBackgroundConstants.CROP_LEFT_COLUMN, left);
+			values.put(MultiBackgroundConstants.CROP_TOP_COLUMN, top);
+			values.put(MultiBackgroundConstants.CROP_LENGTH_COLUMN, length);
+			values.put(MultiBackgroundConstants.CROP_HEIGHT_COLUMN, height);
+			values.put(MultiBackgroundConstants.IMAGE_OFFSET_LEFT_COLUMN,
+					imageOffsetLeft);
+			values.put(MultiBackgroundConstants.IMAGE_OFFSET_TOP_COLUMN,
+					imageOffsetTop);
+			int insertId = (int) database.insert(
+					MultiBackgroundConstants.IMAGE_CROP_TABLE, null, values);
+			if (insertId < 0) {
+				return null;
+			}
+			isDatabaseUpdated = true;
+			database.setTransactionSuccessful();
+			newCropRectangle = new MultiBackgroundCropRectangle(insertId,
+					imageId, left, top, length, height, imageOffsetLeft,
+					imageOffsetTop);
+			Log.i(TAG, "Successfully created a new MBCR: " + newCropRectangle);
+			isTransactionSuccessful = true;
+		} catch (Exception e) {
+			isDatabaseUpdated = false;
+			Log.e(TAG, "Unable to add crop rectangle details due to: " + e);
+		} finally {
+			if (!isTransactionSuccessful) {
+				isDatabaseUpdated = false;
+			}
+			database.endTransaction();
+		}
+		return newCropRectangle;
+	}
+
+	public int updateCropRectangleDetails(int imageId,
+			int left,
+			int top,
+			int length,
+			int height) {
+		ContentValues values = new ContentValues();
+		values.put(MultiBackgroundConstants.CROP_LEFT_COLUMN, left);
+		values.put(MultiBackgroundConstants.CROP_TOP_COLUMN, top);
+		values.put(MultiBackgroundConstants.CROP_LENGTH_COLUMN, length);
+		values.put(MultiBackgroundConstants.CROP_HEIGHT_COLUMN, height);
+		int rowsAffected = database.update(
+				MultiBackgroundConstants.IMAGE_CROP_TABLE, values,
+				MultiBackgroundConstants.IMAGE_ID_COLUMN + "=?",
+				new String[] { Integer.toString(imageId) });
+		if (rowsAffected < 1) {
+			Log.e(TAG, "Unable to locate a row with image_id: " + imageId);
+		} else {
+			isDatabaseUpdated = true;
+		}
+		return rowsAffected;
+	}
+
+	/**
+	 * This method assumes that only the locale and image_path table exists with
+	 * columns as per version 5 database. It checks for existence of other
+	 * tables. If any table doesn't exist, this method would add that table.
+	 * Similarly if in future some columns are changed or added, the check can
+	 * be placed here. This method is a workaround for the problem that due to
+	 * some reason, onUpgrade method is not getting called.
+	 *
+	 * @param db
+	 *            A writable database.
+	 */
+	private void upgradeToLatestDatabaseVersion(SQLiteDatabase db) {
+		String query = "SELECT * FROM SQLITE_MASTER";
+		Cursor cursor = db.rawQuery(query, null);
+		boolean imageCropTableExists = false;
+		boolean cropButtonTableExists = false;
+		while (cursor.moveToNext()) {
+			String tableName = cursor.getString(cursor.getColumnIndex("name"));
+			if (tableName
+					.equalsIgnoreCase(MultiBackgroundConstants.IMAGE_CROP_TABLE)) {
+				imageCropTableExists = true;
+			}
+			if (tableName
+					.equalsIgnoreCase(MultiBackgroundConstants.CROP_BUTTON_DIMENSIONS_TABLE)) {
+				cropButtonTableExists = true;
+			}
+		}
+		cursor.close();
+		try {
+			if (!imageCropTableExists) {
+				db.execSQL(MultiBackgroundConstants.CREATE_IMAGE_CROP_TABLE_QUERY);
+				Log.i(TAG, "Created Image Crop table");
+			}
+			if (!cropButtonTableExists) {
+				db.execSQL(MultiBackgroundConstants.CREATE_CROP_BUTTON_DIMENSIONS_TABLE_QUERY);
+				Log.i(TAG, "Created Crop button dimensions table");
+			}
+		} catch (Exception e) {
+			Log.e(TAG, "Unable to create new tables");
+			Toast.makeText(
+					context,
+					"Error occurred while upgrading database. Creating a new one.",
+					Toast.LENGTH_LONG).show();
+			context.deleteDatabase(MultiBackgroundConstants.DATABASE_NAME);
+			try {
+				createDataBase();
+				openDatabase();
+			} catch (IOException e1) {
+				e1.printStackTrace();
+				Toast.makeText(
+						context,
+						"Error occurred recreating new database. Please go to settings and Clear App's data to resolve issue.",
+						Toast.LENGTH_LONG).show();
+			}
+
+		}
+	}
+
+	public MultiBackgroundCropRectangle getCropRectangle(int imageId) {
+		MultiBackgroundCropRectangle cropRectangle = null;
+		Cursor recordCursor = database.query(
+				MultiBackgroundConstants.IMAGE_CROP_TABLE, imageCropAllColumns,
+				MultiBackgroundConstants.IMAGE_ID_COLUMN + "= ?",
+				new String[] { Integer.toString(imageId) }, null, null, null);
+		if (recordCursor.moveToFirst()) {
+			cropRectangle = MultiBackgroundCropRectangle
+					.newInstance(recordCursor);
+		}
+		if (recordCursor != null) {
+			recordCursor.close();
+		}
+		return cropRectangle;
+	}
+
+	public CropButtonDimensions addCropButtonDimensions(int cropButtonLength,
+			int cropButtonHeight) {
+		CropButtonDimensions cropButtonDimensions = null;
+		database.beginTransaction();
+		try {
+			ContentValues values = new ContentValues();
+			values.put(MultiBackgroundConstants.CROP_BUTTON_LENGTH_COLUMN,
+					cropButtonLength);
+			values.put(MultiBackgroundConstants.CROP_BUTTON_HEIGHT_COLUMN,
+					cropButtonHeight);
+			int insertId = (int) database.insert(
+					MultiBackgroundConstants.CROP_BUTTON_DIMENSIONS_TABLE,
+					null, values);
+			if (insertId < 0) {
+				return null;
+			}
+			database.setTransactionSuccessful();
+			cropButtonDimensions = new CropButtonDimensions(cropButtonLength,
+					cropButtonHeight);
+			Log.i(TAG, "Successfully updated new CropButtonDimensions: "
+					+ cropButtonDimensions);
+		} catch (Exception e) {
+			Log.e(TAG, "Unable to update new CropButtonDimensions: " + e);
+		} finally {
+			database.endTransaction();
+		}
+		return cropButtonDimensions;
+	}
+
+	public CropButtonDimensions getCropButtonDimensions() {
+		CropButtonDimensions cropButtonDimensions = null;
+		Cursor recordCursor = database.query(
+				MultiBackgroundConstants.CROP_BUTTON_DIMENSIONS_TABLE,
+				cropButtonDimensionsAllColumns, null, null, null, null, null);
+		if (recordCursor.moveToFirst()) {
+			cropButtonDimensions = CropButtonDimensions
+					.newInstance(recordCursor);
+		}
+		if (recordCursor != null) {
+			recordCursor.close();
+		}
+		return cropButtonDimensions;
+	}
+
+	/**
+	 * Method to delete data in cropButtonDimensions table so that only one row
+	 * can be present in the table.
+	 *
+	 * @return
+	 */
+	public boolean deleteCropButtonDimensions() {
+		database.beginTransaction();
+		try {
+			/*
+			 * Delete the desired row using its id
+			 */
+			database.delete(
+					MultiBackgroundConstants.CROP_BUTTON_DIMENSIONS_TABLE,
+					null, null);
+			database.setTransactionSuccessful();
+		} catch (Exception e) {
+
+		} finally {
+			database.endTransaction();
+		}
+		return true;
+	}
+
+	@Override
+	public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+
+	}
+
 }

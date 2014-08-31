@@ -1,3 +1,5 @@
+From version 1 to version 5:
+
 CREATE TABLE image_path (
     "_id" INTEGER primary key autoincrement ,
     "next_image_number" INTEGER NOT NULL,
@@ -11,3 +13,19 @@ update image_path set image_number = image_number - 1 where image_number > 2 AND
 create view view1 as select * from image_path where image_number > 1 AND image_number < 6 order by image_number desc
 
 update image_path set image_number = image_number + (1) where  _id in (select _id from view1)
+
+
+From version 6 to ...:
+
+CREATE TABLE image_crop(
+    _id INTEGER primary key autoincrement ,
+    image_id INTEGER NOT NULL UNIQUE,
+    crop_left INTEGER NOT NULL,
+    crop_top INTEGER NOT NULL,
+    crop_length INTEGER NOT NULL,
+    crop_height INTEGER NOT NULL,
+    image_offset_left INTEGER NOT NULL,
+    image_offset_top INTEGER NOT NULL,
+    FOREIGN KEY(image_id) REFERENCES image_path(_id) ON DELETE CASCADE)
+    
+CREATE TABLE crop_button_dimensions(crop_button_length INTEGER, crop_button_height INTEGER)

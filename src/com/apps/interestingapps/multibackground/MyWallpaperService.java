@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Rect;
 import android.os.Build;
 import android.os.Handler;
 import android.preference.PreferenceManager;
@@ -18,14 +19,18 @@ import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.WindowManager;
 
+import com.apps.interestingapps.multibackground.common.CropButtonDimensions;
 import com.apps.interestingapps.multibackground.common.DatabaseHelper;
+import com.apps.interestingapps.multibackground.common.MultiBackgroundCropRectangle;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundImage;
+import com.apps.interestingapps.multibackground.common.MultiBackgroundImage.ImageSize;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundUtilities;
 
 public class MyWallpaperService extends WallpaperService {
 
 	private static Random rand = new Random();
 
+	@Override
 	public Engine onCreateEngine() {
 		return new MyWallpaperEngine();
 	}
@@ -45,6 +50,8 @@ public class MyWallpaperService extends WallpaperService {
 		private static final String TAG = "MyWallpaperService";
 		private float actualDistanceX;
 		private Bitmap currentBitmap;
+		private CropButtonDimensions cbd;
+		private int cbdLength = 0, cbdHeight = 0;
 
 		private int imageOrder = 1;
 
@@ -85,18 +92,21 @@ public class MyWallpaperService extends WallpaperService {
 			handler.post(drawRunner);
 		}
 
+		@Override
 		public void onVisibilityChanged(boolean visible) {
 			this.visible = visible;
 			if (visible) {
 				SharedPreferences prefs = PreferenceManager
 						.getDefaultSharedPreferences(MyWallpaperService.this);
-				if(Build.VERSION.SDK_INT >= 11) {
-				imageOrder = Integer.parseInt(prefs.getString(getApplicationContext()
-						.getResources().getString(R.string.preference_key), "1"));
+				if (Build.VERSION.SDK_INT >= 11) {
+					imageOrder = Integer.parseInt(prefs.getString(
+							getApplicationContext().getResources().getString(
+									R.string.preference_key), "1"));
 				} else {
 					// Default number for API < 11 is Random
-					imageOrder = Integer.parseInt(prefs.getString(getApplicationContext()
-							.getResources().getString(R.string.preference_key), "2"));
+					imageOrder = Integer.parseInt(prefs.getString(
+							getApplicationContext().getResources().getString(
+									R.string.preference_key), "2"));
 				}
 				handler.post(drawRunner);
 			} else {
@@ -104,6 +114,7 @@ public class MyWallpaperService extends WallpaperService {
 			}
 		}
 
+		@Override
 		public void onDestroy() {
 			if (databaseHelper != null) {
 				databaseHelper.closeDatabase();
@@ -111,6 +122,7 @@ public class MyWallpaperService extends WallpaperService {
 			}
 		}
 
+		@Override
 		public void onSurfaceDestroyed(SurfaceHolder holder) {
 			super.onSurfaceDestroyed(holder);
 
@@ -118,6 +130,7 @@ public class MyWallpaperService extends WallpaperService {
 			handler.removeCallbacks(drawRunner);
 		}
 
+		@Override
 		public void onSurfaceChanged(SurfaceHolder holder,
 				int format,
 				int width,
@@ -125,6 +138,7 @@ public class MyWallpaperService extends WallpaperService {
 			super.onSurfaceChanged(holder, format, width, height);
 		}
 
+		@Override
 		public void onTouchEvent(MotionEvent event) {
 			switch (event.getAction()) {
 			case MotionEvent.ACTION_UP:
@@ -136,22 +150,20 @@ public class MyWallpaperService extends WallpaperService {
 				float absoluteDistanceX = Math.abs(actualDistanceX);
 				if (timeDiff != 0 && absoluteDistanceX != 0) {
 					double threshold = absoluteDistanceX / timeDiff;
-					Log.i(TAG, "Threshold = " + threshold);
-					Log.i(TAG, "Distance = " + actualDistanceX + " Time = "
-							+ timeDiff + " ScreenX = " + screenX);
+
 					if (absoluteDistanceX >= screenCoverageRequired
 							|| threshold >= THRESHOLD_FOR_SCREEN_CHANGE) {
 						/*
 						 * TODO: take into consideration :
-						 * 
+						 *
 						 * 1. long press can be done before/after down/up events
 						 * --> Checked if distance is greater than half the
 						 * screen size, it will change the home screen
-						 * 
+						 *
 						 * 2. Current screen can be the last screen in the
 						 * direction of movement --> Currently couldn't find a
 						 * better way, so changing the feature of the app.
-						 * 
+						 *
 						 * 3. Multitouch events
 						 */
 						changeBackground = true;
@@ -190,6 +202,8 @@ public class MyWallpaperService extends WallpaperService {
 		private void changeBackground(Canvas canvas) {
 			if (changeBackground) {
 				Bitmap scaledBitmap = null;
+				Rect srcBitmapRectangle = null, destBitmapRectangle = null;
+				ImageSize imageSize = null;
 				/*
 				 * TODO: Try to optimize this, so that if recycling is not
 				 * required, we can skip this
@@ -202,11 +216,48 @@ public class MyWallpaperService extends WallpaperService {
 					String imagePath = imageList.get(currentImageNumber)
 							.getPath();
 					try {
+						imageSize = imageList.get(currentImageNumber)
+								.getImageSize();
 						scaledBitmap = MultiBackgroundUtilities
 								.scaleDownImageAndDecode(imagePath, screenX,
-										screenY, imageList.get(
-												currentImageNumber)
-												.getImageSize());
+										screenY, imageSize);
+						if (imageSize == ImageSize.CROP_IMAGE) {
+							MultiBackgroundCropRectangle rect = databaseHelper
+									.getCropRectangle(imageList.get(
+											currentImageNumber).get_id());
+							if (rect != null) {
+								if (cbd == null
+										|| cbd.getCropButtonLength() == 0
+										|| cbd.getCropButtonHeight() == 0) {
+									cbd = databaseHelper
+											.getCropButtonDimensions();
+								}
+
+								if (cbd != null) {
+									cbdLength = cbd.getCropButtonLength() / 2;
+									cbdHeight = cbd.getCropButtonHeight() / 2;
+								}
+								int cropLeft = rect.getCropLeft()
+										- rect.getImageOffsetLeft();
+								int cropTop = rect.getCropTop()
+										- rect.getImageOffsetTop();
+								double lengthScaling = 2 * ((1.0 * scaledBitmap
+										.getWidth() / 2) / (scaledBitmap
+										.getWidth() / 2 - cbdLength * 2));
+								double heightScaling = 2 * ((1.0 * scaledBitmap
+										.getHeight() / 2) / (scaledBitmap
+										.getHeight() / 2 - cbdHeight * 2));
+
+								srcBitmapRectangle = new Rect(
+										(int) ((cropLeft) * lengthScaling),
+										(int) ((cropTop) * heightScaling),
+										(int) (((cropLeft + rect
+												.getCropLength())) * lengthScaling),
+										(int) (((cropTop + rect.getCropHeight())) * heightScaling));
+								destBitmapRectangle = new Rect(0, 0, screenX,
+										screenY);
+							}
+						}
 					} catch (Exception e) {
 						Log.d(TAG,
 								"Unable to load image for the given path due to: "
@@ -233,11 +284,20 @@ public class MyWallpaperService extends WallpaperService {
 				changeBackground = false;
 				canvas.drawColor(0, android.graphics.PorterDuff.Mode.CLEAR);
 				if (scaledBitmap != null) {
-
-					int wallpaperX = screenX / 2 - scaledBitmap.getWidth() / 2;
-					int wallpaperY = screenY / 2 - scaledBitmap.getHeight() / 2;
-					canvas.drawBitmap(scaledBitmap, wallpaperX > 0 ? wallpaperX
-							: 0, wallpaperY > 0 ? wallpaperY : 0, null);
+					if (imageSize == ImageSize.CROP_IMAGE
+							&& srcBitmapRectangle != null
+							&& destBitmapRectangle != null) {
+						canvas.drawBitmap(scaledBitmap, srcBitmapRectangle,
+								destBitmapRectangle, null);
+					} else {
+						int wallpaperX = screenX / 2 - scaledBitmap.getWidth()
+								/ 2;
+						int wallpaperY = screenY / 2 - scaledBitmap.getHeight()
+								/ 2;
+						canvas.drawBitmap(scaledBitmap,
+								wallpaperX > 0 ? wallpaperX : 0,
+								wallpaperY > 0 ? wallpaperY : 0, null);
+					}
 					currentBitmap = scaledBitmap;
 				}
 			}

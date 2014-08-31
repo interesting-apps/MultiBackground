@@ -1,8 +1,6 @@
 package com.apps.interestingapps.multibackground.common;
 
 import android.database.Cursor;
-import android.graphics.BitmapFactory;
-import android.util.Log;
 
 /**
  * Class to represent a particular image in the MultiBackground database
@@ -12,7 +10,9 @@ public class MultiBackgroundImage implements Comparable<MultiBackgroundImage> {
 	public static enum ImageSize {
 		COVER_FULL_SCREEN("cover_full_screen"),
 
-		BEST_FIT("best_fit");
+		BEST_FIT("best_fit"),
+
+		CROP_IMAGE("crop_image");
 
 		private String imageSize;
 
@@ -20,6 +20,7 @@ public class MultiBackgroundImage implements Comparable<MultiBackgroundImage> {
 			this.imageSize = imageSize;
 		}
 
+		@Override
 		public String toString() {
 			return imageSize;
 		}
@@ -102,7 +103,7 @@ public class MultiBackgroundImage implements Comparable<MultiBackgroundImage> {
 	/**
 	 * Returns a new object of MultiBackgroundImage using the values provided by
 	 * the cursor
-	 * 
+	 *
 	 * @param cursor
 	 * @return
 	 */
@@ -126,6 +127,7 @@ public class MultiBackgroundImage implements Comparable<MultiBackgroundImage> {
 	/**
 	 * Return a String representation of the image
 	 */
+	@Override
 	public String toString() {
 		StringBuffer sb = new StringBuffer("");
 		sb.append("MultiBackgroundImage: _id = ").append(_id).append(
@@ -135,6 +137,7 @@ public class MultiBackgroundImage implements Comparable<MultiBackgroundImage> {
 		return sb.toString();
 	}
 
+	@Override
 	public boolean equals(Object targetObject) {
 		if (targetObject instanceof MultiBackgroundImage) {
 			return ((MultiBackgroundImage) targetObject).get_id() == _id;
@@ -142,7 +145,7 @@ public class MultiBackgroundImage implements Comparable<MultiBackgroundImage> {
 			return false;
 		}
 	}
-	
+
 	public boolean isDeletedImage() {
 		return isDeletedImage;
 	}

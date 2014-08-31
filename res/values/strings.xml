@@ -1,19 +1,20 @@
 <resources>
 
-    <string name="app_name">MultiBackground</string>
+    <string name="app_name">Multiple Wallpapers</string>
     <string name="wallpaper_description">Wallpaper Changer</string>
     <string name="plus_image_description">Add Image</string>
     <string name="delete_image_description">Delete Image</string>
     <string name="set_wallpaper_button_description">Set Wallpaper</string>
     <string name="crop_current_image_description">Crop Current Image</string>
-    <string name="full_screen">Cover Full Screen</string>
+    <string name="full_screen">Full Screen</string>
     <string name="best_fit">Best Fit</string>
-    <string name="current_image_rectangle_description">Best Fit</string>
+    <string name="crop_image">Crop Image</string>
+    <string name="current_image_rectangle_description">Current Image</string>
     <string name="never_show_again_button_string">Never ask again!</string>
     <string name="never_show_again_preference_string">never_show_again</string>
     <string name="launch_count_preference_string">launch_count</string>
-    <string name="title_rate_app_dialog">Please rate MultiBackground !</string>
-    <string name="message_rate_app_dialog">Please take a moment to rate MultiBackground, to help us improve.</string>
+    <string name="title_rate_app_dialog">Rate Multiple Wallpapers!</string>
+    <string name="message_rate_app_dialog">Please take a moment to rate Multiple Wallpapers, to help us improve.</string>
     <string name="message_thanks_for_your_support">Thanks for your support!</string>
     <string name="rate_app_button_string">Rate it!</string>
     <string name="rate_app_later_button_string">Later!</string>
@@ -21,5 +22,6 @@
     <string name="preference_summary">Select the order in which you want images to be set as wallpaper</string>
     <string name="preference_title">Set Image order</string>
     <string name="preference_key">image_order</string>
+    <string name="crop_rectangle_description">Crop Rectangle</string>
 
 </resources>

@@ -10,6 +10,7 @@ import android.widget.RadioGroup;
 import com.apps.interestingapps.multibackground.R;
 import com.apps.interestingapps.multibackground.SetWallpaperActivity;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundImage;
+import com.apps.interestingapps.multibackground.common.MultiBackgroundImage.ImageSize;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundUtilities;
 
 public class MbiOnClickListener implements OnClickListener {
@@ -47,15 +48,21 @@ public class MbiOnClickListener implements OnClickListener {
 					R.drawable.default_wallpaper, width, height);
 			currentImageView.setImageBitmap(bitmap);
 			radioGroup.setVisibility(View.INVISIBLE);
+			setWallpaperActivity.hideCropButtonsAndRectangle();
 			Log.i(TAG, "Image source deleted.");
 		} else {
 
 			switch (mbi.getImageSize()) {
 			case COVER_FULL_SCREEN:
 				radioGroup.check(R.id.radio_cover_full_screen);
+				setWallpaperActivity.hideCropButtonsAndRectangle();
 				break;
 			case BEST_FIT:
 				radioGroup.check(R.id.radio_best_fit);
+				setWallpaperActivity.hideCropButtonsAndRectangle();
+				break;
+			case CROP_IMAGE:
+				radioGroup.check(R.id.radio_crop_image);
 				break;
 			}
 
@@ -67,9 +74,14 @@ public class MbiOnClickListener implements OnClickListener {
 				Log.d(TAG, "Unable to create bitmap for the given path due to "
 						+ e);
 			}
+			int[] scaledWidthHeight = { bitmap.getWidth(), bitmap.getHeight() };
 			currentImageView.setImageBitmap(bitmap);
 			currentImageView.setVisibility(View.VISIBLE);
 			radioGroup.setVisibility(View.VISIBLE);
+			if (mbi.getImageSize() == ImageSize.CROP_IMAGE) {
+				setWallpaperActivity.showCropButtonsAndRectangle(mbi.get_id(),
+						scaledWidthHeight);
+			}
 		}
 		ImageView previousClickedImage = setWallpaperActivity
 				.getPreviousClickedImageView();
@@ -79,7 +91,6 @@ public class MbiOnClickListener implements OnClickListener {
 		v.setBackgroundResource(R.drawable.border);
 		setWallpaperActivity.setPreviousClickedImageView((ImageView) v);
 		setWallpaperActivity.setCurrentSelectedMbi(mbi);
-
 	}
 
 }

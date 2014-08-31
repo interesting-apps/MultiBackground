@@ -120,7 +120,7 @@ public class MultiBackgroundUtilities {
 	 * This method recycles the original bitmap. So, after this method is used,
 	 * the calling method cannot use original bitmap anymore. This is to prevent
 	 * OutOfMemory errors
-	 * 
+	 *
 	 * @param pathToImage
 	 * @param originalBitmap
 	 * @param maxWidth
@@ -137,19 +137,19 @@ public class MultiBackgroundUtilities {
 		Matrix rotationMatrix = new Matrix();
 		int rotationRequired = getRequiredimageRotation(pathToImage);
 		rotationMatrix.postRotate(rotationRequired);
-		Bitmap roatedBitmap = Bitmap.createBitmap(originalBitmap, 0, 0,
+		Bitmap rotatedBitmap = Bitmap.createBitmap(originalBitmap, 0, 0,
 				originalBitmap.getWidth(), originalBitmap.getHeight(),
 				rotationMatrix, true);
-		if (roatedBitmap != originalBitmap) {
+		if (rotatedBitmap != originalBitmap) {
 			originalBitmap.recycle();
 		}
-		int[] scaledWidthHeight = getScaledWidthHeight(roatedBitmap, imageSize,
+		int[] scaledWidthHeight = getScaledWidthHeight(rotatedBitmap, imageSize,
 				getImageAspectRatio(options, rotationRequired), maxWidth,
 				maxHeight);
-		Bitmap scaledBitmap = Bitmap.createScaledBitmap(roatedBitmap,
+		Bitmap scaledBitmap = Bitmap.createScaledBitmap(rotatedBitmap,
 				scaledWidthHeight[0], scaledWidthHeight[1], true);
-		if (scaledBitmap != roatedBitmap) {
-			roatedBitmap.recycle();
+		if (scaledBitmap != rotatedBitmap) {
+			rotatedBitmap.recycle();
 		}
 		return scaledBitmap;
 	}
@@ -174,6 +174,7 @@ public class MultiBackgroundUtilities {
 			}
 			widthHeight[1] = tempHeight;
 		}
+
 		return widthHeight;
 
 	}
@@ -210,7 +211,7 @@ public class MultiBackgroundUtilities {
 	 * will not be in any other's nextImageNumber) to the last image (the one
 	 * whose nextImageNumber is
 	 * MultiBackgroundConstants.DEFAULT_NEXT_IMAGE_NUMBER
-	 * 
+	 *
 	 * @param nextImageNumberToMbiMap
 	 * @return
 	 */
@@ -226,7 +227,7 @@ public class MultiBackgroundUtilities {
 		 */
 		while (latestMbi != null) {
 			imageListFromEnd.add(latestMbi);
-			latestMbi = nextImageNumberToMbiMap.get((int) latestMbi.get_id());
+			latestMbi = nextImageNumberToMbiMap.get(latestMbi.get_id());
 		}
 		Log.i(TAG, "Total size of the list is: " + imageListFromEnd.size());
 		return CommonUtilities.reverseList(imageListFromEnd);
@@ -234,7 +235,7 @@ public class MultiBackgroundUtilities {
 
 	/**
 	 * Get the aspect ratio of a resource
-	 * 
+	 *
 	 * @param res
 	 * @param resourceId
 	 * @return

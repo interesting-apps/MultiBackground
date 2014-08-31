@@ -1,10 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.apps.interestingapps.multibackground"
-    android:versionCode="5"
-    android:versionName="1.0.5" >
+    android:versionCode="7"
+    android:versionName="2.0.0" >
 
     <uses-sdk
-        android:minSdkVersion="7"
+        android:minSdkVersion="9"
         android:targetSdkVersion="19" />
 
     <uses-feature
@@ -25,7 +25,7 @@
         <service
             android:name="MyWallpaperService"
             android:enabled="true"
-            android:label="MultiBackground "
+            android:label="@string/app_name"
             android:permission="android.permission.BIND_WALLPAPER" >
             <intent-filter>
                 <action android:name="android.service.wallpaper.WallpaperService" />

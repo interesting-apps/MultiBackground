@@ -43,17 +43,67 @@
         android:id="@+id/cropImageRelativeLayout"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        android:orientation="vertical" >
+        android:layout_centerHorizontal="true" >
+
+        <RelativeLayout
+            android:id="@+id/cropImageRelLayout"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:layout_centerHorizontal="true" >
+
+            <ImageView
+                android:id="@+id/cropCurrentImageView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:contentDescription="@string/crop_current_image_description"
+                android:scaleType="fitCenter"
+                android:src="@drawable/default_wallpaper"
+                android:visibility="invisible" />
+        </RelativeLayout>
 
         <ImageView
-            android:id="@+id/cropCurrentImageView"
+            android:id="@+id/cropRectangle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
             android:contentDescription="@string/crop_current_image_description"
-            android:padding="5dip"
-            android:src="@drawable/default_wallpaper"
+            android:src="@drawable/crop_rectangle"
+            android:visibility="invisible" />
+
+        <ImageView
+            android:id="@+id/cropLeftTopButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="@string/crop_current_image_description"
+            android:scaleType="center"
+            android:src="@drawable/crop_button_big"
+            android:visibility="invisible" />
+
+        <ImageView
+            android:id="@+id/cropLeftBottomButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="@string/crop_current_image_description"
+            android:scaleType="center"
+            android:src="@drawable/crop_button_big"
+            android:visibility="invisible" />
+
+        <ImageView
+            android:id="@+id/cropRightTopButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="@string/crop_current_image_description"
+            android:scaleType="center"
+            android:src="@drawable/crop_button_big"
+            android:visibility="invisible" />
+
+        <ImageView
+            android:id="@+id/cropRightBottomButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="@string/crop_current_image_description"
+            android:scaleType="center"
+            android:src="@drawable/crop_button_big"
             android:visibility="invisible" />
     </RelativeLayout>
 
@@ -88,6 +138,14 @@
                 android:onClick="onRadioButtonClicked"
                 android:text="@string/best_fit"
                 android:textColor="@color/White" />
+
+            <RadioButton
+                android:id="@+id/radio_crop_image"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="onRadioButtonClicked"
+                android:text="@string/crop_image"
+                android:textColor="@color/White" />
         </RadioGroup>
 
         <HorizontalScrollView
@@ -110,10 +168,10 @@
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         ads:adSize="BANNER"
-        ads:adUnitId="ca-app-pub-4531130906794046/8015440616"
-        />
+        ads:adUnitId="ca-app-pub-4531130906794046/8015440616" />
 
-    <!-- <com.google.ads.AdView
+    <!--
+         <com.google.ads.AdView
         xmlns:ads="http://schemas.android.com/apk/lib/com.google.ads"
         android:id="@+id/adView"
         android:layout_width="fill_parent"
@@ -121,6 +179,7 @@
         android:layout_alignParentBottom="true"
         ads:adSize="BANNER"
         ads:adUnitId="ca-app-pub-4531130906794046/8015440616"
-        ads:refreshInterval="60" /> -->
+        ads:refreshInterval="60" />
+    -->
 
 </RelativeLayout>

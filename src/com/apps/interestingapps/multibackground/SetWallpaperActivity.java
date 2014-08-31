@@ -2,7 +2,7 @@ package com.apps.interestingapps.multibackground;
 
 import java.util.ArrayList;
 import java.util.List;
- 
+
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Dialog;
@@ -15,6 +15,7 @@ import android.content.pm.ActivityInfo;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -39,12 +40,17 @@ import android.widget.RadioGroup;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
+import com.apps.interestingapps.multibackground.common.CropButtonDimensions;
 import com.apps.interestingapps.multibackground.common.DatabaseHelper;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundConstants;
+import com.apps.interestingapps.multibackground.common.MultiBackgroundCropRectangle;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundImage;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundImage.ImageSize;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundUtilities;
 import com.apps.interestingapps.multibackground.listeners.AddImageClickListener;
+import com.apps.interestingapps.multibackground.listeners.CropButtonTouchListener;
+import com.apps.interestingapps.multibackground.listeners.CropButtonTouchListener.CropButtonPosition;
+import com.apps.interestingapps.multibackground.listeners.CropRectangleTouchListener;
 import com.apps.interestingapps.multibackground.listeners.DragToDeleteListener;
 import com.apps.interestingapps.multibackground.listeners.MbiDragListener;
 import com.apps.interestingapps.multibackground.listeners.MbiLongClickListener;
@@ -73,11 +79,20 @@ public class SetWallpaperActivity extends Activity {
 	private RadioGroup radioGroup;
 	private MultiBackgroundImage currentSelectedMbi;
 	private AdView adview;
-	private RelativeLayout currentImageViewRelativeLayout;
+	private RelativeLayout parentCropRelativeLayout;
+	private RelativeLayout centralImageViewRelativeLayout;
 	private ImageView previousClickedImageView;
 	private int previousClickedImageIndex = 0;
 	private Button setWallpaperButton;
 	private ImageView longClickedImageView;
+	private ImageView leftTopCropButton, leftBottomCropButton,
+			rightTopCropButton, rightBottomCropButton;
+	private ImageView cropRectangleImageView;
+	private boolean moveRectangleLeftToCenterOfButton = false;
+	private boolean insertCropButtonDimensionsIntoDB = false;
+	private CropButtonDimensions cropButtonDimensions;
+	private boolean layoutPaddingSet = false;
+	private boolean onCreateCalled = false;
 
 	@SuppressWarnings("deprecation")
 	@Override
@@ -95,11 +110,18 @@ public class SetWallpaperActivity extends Activity {
 		halfScreenHeight = screenHeight / 2;
 
 		databaseHelper = DatabaseHelper.initializeDatabase(this);
+		cropButtonDimensions = databaseHelper.getCropButtonDimensions();
+		if (cropButtonDimensions == null
+				|| cropButtonDimensions.getCropButtonLength() == 0
+				|| cropButtonDimensions.getCropButtonHeight() == 0) {
+			insertCropButtonDimensionsIntoDB = true;
+		}
 
 		initializeStaticViews();
 
 		SharedPreferences prefs = getSharedPreferences(
 				MultiBackgroundConstants.PREFERENCES_FILE_NAME, 0);
+		onCreateCalled = true;
 	}
 
 	@Override
@@ -128,8 +150,8 @@ public class SetWallpaperActivity extends Activity {
 		imageViewList = new ArrayList<ImageView>();
 		mbiList = new ArrayList<MultiBackgroundImage>();
 		getAllImages();
-		currentImageViewRelativeLayout.getLayoutParams().width = halfScreenWidth;
-		currentImageViewRelativeLayout.getLayoutParams().height = halfScreenHeight;
+		parentCropRelativeLayout.getLayoutParams().width = halfScreenWidth;
+		parentCropRelativeLayout.getLayoutParams().height = halfScreenHeight;
 
 		if (mbiList.size() > 0) {
 			if (previousClickedImageIndex >= mbiList.size()) {
@@ -143,24 +165,67 @@ public class SetWallpaperActivity extends Activity {
 		}
 		/*
 		 * Android 4.0 device id: 64FFE02AABF389054771188E3CF39B63
+		 *
 		 * Sony Xperia X10 device id: 080A4A2357E9089FDAB344624A7181F5
+		 *
+		 * Nexus 4 - Varun's - device id: 7A107DF0AB377695D8973481767E5A76
 		 */
 		adview = (AdView) findViewById(R.id.adView);
 
-		/*
-		 * TODO: Uncomment it while running tests. Comment this part while
-		 * creating APK for production
-		 */
+		// /*
+		// * TODO: Uncomment it while running tests. Comment this part while
+		// * creating APK for production
+		// */
 		// AdRequest adRequest = new AdRequest.Builder().addTestDevice(
-		// AdRequest.DEVICE_ID_EMULATOR)
-		// .addTestDevice( "080A4A2357E9089FDAB344624A7181F5").build();
+		// AdRequest.DEVICE_ID_EMULATOR).addTestDevice(
+		// "64FFE02AABF389054771188E3CF39B63").build();
 
 		AdRequest adRequest = new AdRequest.Builder().build();
-		// Create an ad request. Check logcat output for the hashed device ID to
-		// get test ads on a physical device.
 
 		adview.loadAd(adRequest);
-		showRateDialog();
+		if (onCreateCalled) {
+			onCreateCalled = false;
+			showRateDialog();
+		}
+	}
+
+	@Override
+	public void onWindowFocusChanged(boolean hasFocus) {
+		if (insertCropButtonDimensionsIntoDB) {
+			if (cropButtonDimensions != null) {
+				if (cropButtonDimensions.getCropButtonLength() == 0
+						|| cropButtonDimensions.getCropButtonHeight() == 0) {
+					databaseHelper.deleteCropButtonDimensions();
+				}
+			}
+			cropButtonDimensions = databaseHelper
+					.addCropButtonDimensions(leftTopCropButton.getWidth(),
+							leftTopCropButton.getHeight());
+			insertCropButtonDimensionsIntoDB = false;
+		}
+
+		if (moveRectangleLeftToCenterOfButton) {
+			RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams) cropRectangleImageView
+					.getLayoutParams();
+			setImagePosition(cropRectangleImageView, layoutParams.leftMargin
+					+ (cropButtonDimensions.getCropButtonLength() / 2),
+					layoutParams.topMargin
+							+ (cropButtonDimensions.getCropButtonHeight() / 2));
+			moveRectangleLeftToCenterOfButton = false;
+		}
+		if (!layoutPaddingSet) {
+			if (cropButtonDimensions != null) {
+				int leftAndRightPadding = cropButtonDimensions
+						.getCropButtonLength() / 2;
+				int topAndBottomPadding = cropButtonDimensions
+						.getCropButtonHeight() / 2;
+				centralImageViewRelativeLayout.setPadding(leftAndRightPadding,
+						topAndBottomPadding, leftAndRightPadding,
+						topAndBottomPadding);
+				layoutPaddingSet = true;
+			}
+		}
+
 	}
 
 	private void initializeStaticViews() {
@@ -176,12 +241,51 @@ public class SetWallpaperActivity extends Activity {
 		}
 		currentImageView = (ImageView) findViewById(R.id.cropCurrentImageView);
 		radioGroup = (RadioGroup) findViewById(R.id.radio_image_size_group);
-		currentImageViewRelativeLayout = (RelativeLayout) findViewById(R.id.cropImageRelativeLayout);
+		parentCropRelativeLayout = (RelativeLayout) findViewById(R.id.cropImageRelativeLayout);
+		centralImageViewRelativeLayout = (RelativeLayout) findViewById(R.id.cropImageRelLayout);
+		initializeCropRectangleAndButtons();
+	}
+
+	private void initializeCropRectangleAndButtons() {
+		cropRectangleImageView = (ImageView) findViewById(R.id.cropRectangle);
+		Drawable cropRectangleDrawable = getResources().getDrawable(
+				R.drawable.crop_rectangle);
+
+		leftTopCropButton = (ImageView) findViewById(R.id.cropLeftTopButton);
+		leftTopCropButton.setOnTouchListener(new CropButtonTouchListener(
+				CropButtonPosition.LEFT_TOP, leftTopCropButton,
+				cropRectangleImageView, currentImageView,
+				cropRectangleDrawable, this, parentCropRelativeLayout));
+
+		leftBottomCropButton = (ImageView) findViewById(R.id.cropLeftBottomButton);
+		leftBottomCropButton.setOnTouchListener(new CropButtonTouchListener(
+				CropButtonPosition.LEFT_BOTTOM, leftBottomCropButton,
+				cropRectangleImageView, currentImageView,
+				cropRectangleDrawable, this, parentCropRelativeLayout));
+
+		rightTopCropButton = (ImageView) findViewById(R.id.cropRightTopButton);
+		rightTopCropButton.setOnTouchListener(new CropButtonTouchListener(
+				CropButtonPosition.RIGHT_TOP, rightTopCropButton,
+				cropRectangleImageView, currentImageView,
+				cropRectangleDrawable, this, parentCropRelativeLayout));
+
+		rightBottomCropButton = (ImageView) findViewById(R.id.cropRightBottomButton);
+		rightBottomCropButton.setOnTouchListener(new CropButtonTouchListener(
+				CropButtonPosition.RIGHT_BOTTOM, rightBottomCropButton,
+				cropRectangleImageView, currentImageView,
+				cropRectangleDrawable, this, parentCropRelativeLayout));
+
+		cropRectangleImageView
+				.setOnTouchListener(new CropRectangleTouchListener(
+						currentImageView, leftTopCropButton,
+						leftBottomCropButton, rightTopCropButton,
+						rightBottomCropButton, this, parentCropRelativeLayout));
 	}
 
 	/**
 	 * Method to create a context menu when a list item pressed for long
 	 */
+	@Override
 	public void onCreateContextMenu(ContextMenu menu,
 			View v,
 			ContextMenuInfo menuInfo) {
@@ -233,7 +337,7 @@ public class SetWallpaperActivity extends Activity {
 
 	public void onClick(View view) {
 		Toast.makeText(getApplicationContext(),
-				"Please select MultiBackground from the shown list.",
+				"Please select Multiple Wallpapers from the shown list.",
 				Toast.LENGTH_LONG).show();
 		setWallpaperButton
 				.setBackgroundResource(R.drawable.set_wallpaper_button_pressed);
@@ -245,6 +349,7 @@ public class SetWallpaperActivity extends Activity {
 	/**
 	 * Method to perform operation once an activity has been started
 	 */
+	@Override
 	public void onActivityResult(int requestCode, int resultCode, Intent data) {
 		setWallpaperButton
 				.setBackgroundResource(R.drawable.set_wallpaper_button);
@@ -672,12 +777,11 @@ public class SetWallpaperActivity extends Activity {
 										.getPath(), halfScreenWidth,
 								halfScreenHeight, radioGroup);
 						onClick.onClick(imageViewList.get(indexOfImage - 1));
-						Log.i(TAG, "Showing image with index: "
-								+ (indexOfImage - 1));
 					}
 				} else {
 					currentImageView.setVisibility(View.INVISIBLE);
 					radioGroup.setVisibility(View.INVISIBLE);
+					hideCropButtonsAndRectangle();
 				}
 			}
 
@@ -740,16 +844,20 @@ public class SetWallpaperActivity extends Activity {
 		switch (view.getId()) {
 		case R.id.radio_cover_full_screen:
 			if (checked) {
-				Log.i(TAG, "Cover full screen is selected.");
 				selectedImageSize = ImageSize.COVER_FULL_SCREEN;
+				hideCropButtonsAndRectangle();
 			}
 			break;
 		case R.id.radio_best_fit:
 			if (checked) {
-				Log.i(TAG, "Best Fit is selected.");
 				selectedImageSize = ImageSize.BEST_FIT;
+				hideCropButtonsAndRectangle();
 			}
 			break;
+		case R.id.radio_crop_image:
+			if (checked) {
+				selectedImageSize = ImageSize.CROP_IMAGE;
+			}
 		}
 
 		if (currentSelectedMbi == null) {
@@ -761,14 +869,10 @@ public class SetWallpaperActivity extends Activity {
 				currentSelectedMbi.setImageSize(selectedImageSize);
 				Bitmap sourceBitmap = ((BitmapDrawable) currentImageView
 						.getDrawable()).getBitmap();
-				Log.i(TAG, "Current Image Width = " + sourceBitmap.getWidth()
-						+ " height = " + sourceBitmap.getHeight());
 				int[] scaledWidthHeight = MultiBackgroundUtilities
 						.getScaledWidthHeight(sourceBitmap, selectedImageSize,
 								currentSelectedMbi.getAspectRatio(),
 								halfScreenWidth, halfScreenHeight);
-				Log.i(TAG, "Expected Image Width = " + scaledWidthHeight[0]
-						+ " height = " + scaledWidthHeight[1]);
 				Bitmap scaledCurrentImageViewBitmap = Bitmap
 						.createScaledBitmap(sourceBitmap, scaledWidthHeight[0],
 								scaledWidthHeight[1], true);
@@ -776,10 +880,116 @@ public class SetWallpaperActivity extends Activity {
 				if (scaledCurrentImageViewBitmap != sourceBitmap) {
 					sourceBitmap.recycle();
 				}
+				if (selectedImageSize == ImageSize.CROP_IMAGE) {
+					showCropButtonsAndRectangle(currentSelectedMbi.get_id(),
+							scaledWidthHeight);
+				}
 			} else {
 				Log.d(TAG, "The current image size is already selected.");
 			}
 		}
+	}
+
+	public void
+			showCropButtonsAndRectangle(int imageId, int[] scaledWidthHeight) {
+		MultiBackgroundCropRectangle cropRectangleDetails = databaseHelper
+				.getCropRectangle(imageId);
+		setCropButtonPositions(imageId, scaledWidthHeight, cropRectangleDetails);
+	}
+
+	private void setCropButtonPositions(int imageId,
+			int[] scaledWidthHeight,
+			MultiBackgroundCropRectangle cropRectangleDetails) {
+		if (cropRectangleDetails == null) {
+			// Set default location and write to database these default
+			// locations so that next click
+			// can use this information.
+			RelativeLayout.LayoutParams relLayoutParams = (RelativeLayout.LayoutParams) parentCropRelativeLayout
+					.getLayoutParams();
+			int imageCenterLeft = relLayoutParams.width / 2;
+			int imageCenterTop = relLayoutParams.height / 2;
+			int defaultRectangleLeft = imageCenterLeft
+					- (scaledWidthHeight[0] / 4);
+			int defaultRectangleTop = imageCenterTop
+					- (scaledWidthHeight[1] / 4);
+			int imageOffsetLeft = imageCenterLeft - (scaledWidthHeight[0] / 2);
+			int imageOffsetTop = imageCenterTop - (scaledWidthHeight[1] / 2);
+
+			cropRectangleDetails = databaseHelper.addCropImageData(imageId,
+					defaultRectangleLeft, defaultRectangleTop,
+					scaledWidthHeight[0] / 2, scaledWidthHeight[1] / 2,
+					imageOffsetLeft, imageOffsetTop);
+			if (cropRectangleDetails == null) {
+				Toast.makeText(getApplicationContext(),
+						"Unable to crop the image.", Toast.LENGTH_LONG).show();
+				return;
+			}
+			Log.i(TAG, cropRectangleDetails.toString());
+		}
+		setImagePosition(leftTopCropButton, cropRectangleDetails.getCropLeft(),
+				cropRectangleDetails.getCropTop());
+		setImagePosition(leftBottomCropButton, cropRectangleDetails
+				.getCropLeft(), cropRectangleDetails.getCropTop()
+				+ cropRectangleDetails.getCropHeight());
+		setImagePosition(rightTopCropButton, cropRectangleDetails.getCropLeft()
+				+ cropRectangleDetails.getCropLength(), cropRectangleDetails
+				.getCropTop());
+		setImagePosition(rightBottomCropButton, cropRectangleDetails
+				.getCropLeft()
+				+ cropRectangleDetails.getCropLength(), cropRectangleDetails
+				.getCropTop()
+				+ cropRectangleDetails.getCropHeight());
+		leftTopCropButton.setVisibility(View.VISIBLE);
+		leftBottomCropButton.setVisibility(View.VISIBLE);
+		rightBottomCropButton.setVisibility(View.VISIBLE);
+		rightTopCropButton.setVisibility(View.VISIBLE);
+
+		/*
+		 * Draw the rectangle
+		 */
+		if (cropRectangleDetails.getCropLength() > 0
+				&& cropRectangleDetails.getCropHeight() > 0) {
+			Drawable cropRectangleDrawable = getResources().getDrawable(
+					R.drawable.crop_rectangle);
+			Bitmap cropRectangleBitmap = Bitmap.createScaledBitmap(
+					((BitmapDrawable) cropRectangleDrawable).getBitmap(),
+					cropRectangleDetails.getCropLength(), cropRectangleDetails
+							.getCropHeight(), true);
+
+			cropRectangleImageView.setImageBitmap(cropRectangleBitmap);
+			if (cropButtonDimensions != null) {
+				setImagePosition(
+						cropRectangleImageView,
+						cropRectangleDetails.getCropLeft()
+								+ (cropButtonDimensions.getCropButtonLength() / 2),
+						cropRectangleDetails.getCropTop()
+								+ (cropButtonDimensions.getCropButtonHeight() / 2));
+			} else {
+				moveRectangleLeftToCenterOfButton = true;
+			}
+			/*
+			 * Now we have the details of the crop rectangle
+			 */
+			cropRectangleImageView.setVisibility(View.VISIBLE);
+		} else {
+			cropRectangleImageView.setVisibility(View.INVISIBLE);
+		}
+	}
+
+	private void setImagePosition(ImageView imageView, int left, int top) {
+		RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams) imageView
+				.getLayoutParams();
+		layoutParams.leftMargin = left;
+		layoutParams.topMargin = top;
+		imageView.setLayoutParams(layoutParams);
+	}
+
+	public void hideCropButtonsAndRectangle() {
+		leftTopCropButton.setVisibility(View.INVISIBLE);
+		leftBottomCropButton.setVisibility(View.INVISIBLE);
+		rightBottomCropButton.setVisibility(View.INVISIBLE);
+		rightTopCropButton.setVisibility(View.INVISIBLE);
+		cropRectangleImageView.setVisibility(View.INVISIBLE);
 	}
 
 	public ImageView getPreviousClickedImageView() {
@@ -888,5 +1098,25 @@ public class SetWallpaperActivity extends Activity {
 			}
 		});
 		dialog.show();
+	}
+
+	public synchronized void updateCropRectangleCoordinates() {
+		RelativeLayout.LayoutParams leftTopButtonLayoutParams = (RelativeLayout.LayoutParams) leftTopCropButton
+				.getLayoutParams();
+		RelativeLayout.LayoutParams rightBottomButtonLayoutParams = (RelativeLayout.LayoutParams) rightBottomCropButton
+				.getLayoutParams();
+		int cropRectangleLength = rightBottomButtonLayoutParams.leftMargin
+				- leftTopButtonLayoutParams.leftMargin;
+		int cropRectangleHeight = rightBottomButtonLayoutParams.topMargin
+				- leftTopButtonLayoutParams.topMargin;
+		int updateResult = databaseHelper.updateCropRectangleDetails(
+				currentSelectedMbi.get_id(),
+				leftTopButtonLayoutParams.leftMargin,
+				leftTopButtonLayoutParams.topMargin, cropRectangleLength,
+				cropRectangleHeight);
+
+		if (updateResult < 1) {
+			Log.e(TAG, "Unable to update crop rectangle details");
+		}
 	}
 }
