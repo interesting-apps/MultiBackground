@@ -356,8 +356,11 @@ public class SetWallpaperActivity extends Activity {
 		if (resultCode == Activity.RESULT_OK) {
 			if (requestCode == MultiBackgroundConstants.SELECT_PICTURE_ACTIVITY) {
 				Uri selectedImageUri = data.getData();
-				Log.i(TAG, "URI: " + selectedImageUri.toString());
-				addNewImage(selectedImageUri);
+				if (selectedImageUri != null
+						&& selectedImageUri.toString().length() > 0) {
+					Log.i(TAG, "URI: " + selectedImageUri.toString());
+					addNewImage(selectedImageUri);
+				}
 			}
 		}
 	}

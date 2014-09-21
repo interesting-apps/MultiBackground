@@ -15,7 +15,7 @@ create view view1 as select * from image_path where image_number > 1 AND image_n
 update image_path set image_number = image_number + (1) where  _id in (select _id from view1)
 
 
-From version 6 to ...:
+From version 7 to ...:
 
 CREATE TABLE image_crop(
     _id INTEGER primary key autoincrement ,

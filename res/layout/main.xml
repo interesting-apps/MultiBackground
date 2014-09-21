@@ -145,7 +145,8 @@
                 android:layout_height="wrap_content"
                 android:onClick="onRadioButtonClicked"
                 android:text="@string/crop_image"
-                android:textColor="@color/White" />
+                android:textColor="@color/White"
+                 />
         </RadioGroup>
 
         <HorizontalScrollView
