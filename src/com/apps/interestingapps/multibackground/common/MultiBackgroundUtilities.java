@@ -16,7 +16,6 @@ import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.media.ExifInterface;
 import android.util.Log;
-import android.widget.Toast;
 
 import com.apps.interestingapps.multibackground.common.MultiBackgroundImage.ImageSize;
 
@@ -435,10 +434,26 @@ public class MultiBackgroundUtilities {
 					copiedBitmap.compress(Bitmap.CompressFormat.PNG, 90,
 							outStream);
 					Log.d(TAG, "Copied the image file locally.");
+					databaseHelper.addLocalmagePathToDatabase(mbi.get_id(),
+							localImagePath, isImageOnExternalStorage);
+					databaseHelper.setImagePathRowUpdated(mbi.get_id(), 0);
+					mbi.setImagePathRowUpdated(0);
+					Log.d(TAG, "Saved local image file for image with ID: "
+							+ mbi.get_id());
+					/*
+					 * Delete the file from internal storage if external storage
+					 * file is stored successfully.
+					 */
+					if (isImageOnExternalStorage > 0) {
+						String internalStorageFilePath = MultiBackgroundUtilities
+								.generateLocalFilePath(context,
+										localImageFileName);
+						File file = new File(internalStorageFilePath);
+						if (file.exists()) {
+							file.delete();
+						}
+					}
 				} catch (Exception e) {
-					Toast.makeText(context,
-							"Unable to copy image file locally",
-							Toast.LENGTH_LONG).show();
 					Log.e(TAG, "Unable to copy image file locally: "
 							+ e.getMessage());
 				} finally {
@@ -454,26 +469,8 @@ public class MultiBackgroundUtilities {
 						}
 					}
 				}
-
-				databaseHelper.addLocalmagePathToDatabase(mbi.get_id(),
-						localImagePath, isImageOnExternalStorage);
-				databaseHelper.setImagePathRowUpdated(mbi.get_id(), 0);
-				mbi.setImagePathRowUpdated(0);
-				Log.d(TAG, "Saved local image file for image with ID: "
-						+ mbi.get_id());
-				/*
-				 * Delete the file from internal storage if external storage
-				 * file is stored successfully.
-				 */
-				if (isImageOnExternalStorage > 0) {
-					String internalStorageFilePath = MultiBackgroundUtilities
-							.generateLocalFilePath(context, localImageFileName);
-					File file = new File(internalStorageFilePath);
-					if (file.exists()) {
-						file.delete();
-					}
-				}
 			}
+
 		}).start();
 	}
 }
