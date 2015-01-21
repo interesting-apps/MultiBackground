@@ -29,3 +29,10 @@ CREATE TABLE image_crop(
     FOREIGN KEY(image_id) REFERENCES image_path(_id) ON DELETE CASCADE)
     
 CREATE TABLE crop_button_dimensions(crop_button_length INTEGER, crop_button_height INTEGER)
+
+
+From version 9 to ....:
+
+create table local_image_path(image_id Integer NOT_NULL UNIQUE, local_path text NOT_NULL, image_on_external_storage Integer, FOREIGN KEY (image_id) REFERENCES image_path(_id) ON DELETE CASCADE);
+
+alter table image_path add column is_image_path_row_updated integer default 1;

@@ -1,16 +1,22 @@
 package com.apps.interestingapps.multibackground.common;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
+import android.graphics.Rect;
 import android.media.ExifInterface;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.apps.interestingapps.multibackground.common.MultiBackgroundImage.ImageSize;
 
@@ -143,9 +149,9 @@ public class MultiBackgroundUtilities {
 		if (rotatedBitmap != originalBitmap) {
 			originalBitmap.recycle();
 		}
-		int[] scaledWidthHeight = getScaledWidthHeight(rotatedBitmap, imageSize,
-				getImageAspectRatio(options, rotationRequired), maxWidth,
-				maxHeight);
+		int[] scaledWidthHeight = getScaledWidthHeight(rotatedBitmap,
+				imageSize, getImageAspectRatio(options, rotationRequired),
+				maxWidth, maxHeight);
 		Bitmap scaledBitmap = Bitmap.createScaledBitmap(rotatedBitmap,
 				scaledWidthHeight[0], scaledWidthHeight[1], true);
 		if (scaledBitmap != rotatedBitmap) {
@@ -276,5 +282,198 @@ public class MultiBackgroundUtilities {
 			aspectRatio = options.outWidth * 1.0 / options.outHeight;
 		}
 		return aspectRatio;
+	}
+
+	public static String generateLocalFilePath(Context context,
+			String localImageFileName) {
+		String localFileName = new StringBuilder("").append(
+				context.getFilesDir()).append(File.separator).append(
+				localImageFileName).toString();
+		return localFileName;
+	}
+
+	public static String generateFileNameFromImageId(int imageId) {
+		String localFileName = new StringBuilder("").append(imageId).append(
+				MultiBackgroundConstants.LOCAL_IMAGE_FORMAT).toString();
+		return localFileName;
+	}
+
+	public static Bitmap createLocalImageAndSave(Context context,
+			DatabaseHelper databaseHelper,
+			int screenX,
+			int screenY,
+			CropButtonDimensions cbd,
+			MultiBackgroundImage mbi) {
+		if (mbi.isImagePathRowUpdated() == 0) {
+			return null;
+		}
+		Bitmap scaledBitmap = null;
+		MultiBackgroundImage.ImageSize imageSize = null;
+		String imagePath = mbi.getPath();
+		Rect srcBitmapRectangle = null;
+		int cbdLength = 0;
+		int cbdHeight = 0;
+		try {
+			imageSize = mbi.getImageSize();
+			scaledBitmap = MultiBackgroundUtilities.scaleDownImageAndDecode(
+					imagePath, screenX, screenY, imageSize);
+			if (imageSize == ImageSize.CROP_IMAGE) {
+				MultiBackgroundCropRectangle rect = databaseHelper
+						.getCropRectangle(mbi.get_id());
+				if (rect != null) {
+					if (cbd == null || cbd.getCropButtonLength() == 0
+							|| cbd.getCropButtonHeight() == 0) {
+						cbd = databaseHelper.getCropButtonDimensions();
+					}
+
+					if (cbd != null) {
+						cbdLength = cbd.getCropButtonLength() / 2;
+						cbdHeight = cbd.getCropButtonHeight() / 2;
+					}
+					int cropLeft = rect.getCropLeft()
+							- rect.getImageOffsetLeft();
+					int cropTop = rect.getCropTop() - rect.getImageOffsetTop();
+					double lengthScaling = 2 * ((1.0 * scaledBitmap.getWidth() / 2) / (scaledBitmap
+							.getWidth() / 2 - cbdLength * 2));
+					double heightScaling = 2 * ((1.0 * scaledBitmap.getHeight() / 2) / (scaledBitmap
+							.getHeight() / 2 - cbdHeight * 2));
+
+					srcBitmapRectangle = new Rect(
+							(int) ((cropLeft) * lengthScaling),
+							(int) ((cropTop) * heightScaling),
+							(int) (((cropLeft + rect.getCropLength())) * lengthScaling),
+							(int) (((cropTop + rect.getCropHeight())) * heightScaling));
+					Bitmap croppedBitmap = Bitmap.createBitmap(scaledBitmap,
+							srcBitmapRectangle.left, srcBitmapRectangle.top,
+							srcBitmapRectangle.right - srcBitmapRectangle.left,
+							srcBitmapRectangle.bottom - srcBitmapRectangle.top);
+					if (croppedBitmap != scaledBitmap) {
+						scaledBitmap.recycle();
+					}
+					Bitmap finalScaledBitmap = Bitmap.createScaledBitmap(
+							croppedBitmap, screenX, screenY, true);
+					if (finalScaledBitmap != croppedBitmap) {
+						croppedBitmap.recycle();
+					}
+					scaledBitmap = finalScaledBitmap;
+				}
+			}
+		} catch (Exception e) {
+			Log.d(TAG, "Unable to load image for the given path due to: " + e);
+		}
+		if (scaledBitmap == null) {
+			/*
+			 * If scaled bitmap is null, then don't store anything in DB. just
+			 * show the default image whenever there is a missing entry in the
+			 * "Local_image_path" table.
+			 */
+			return null;
+		}
+		try {
+			createImageFileFromBitmap(context, databaseHelper, screenX,
+					screenY, mbi, scaledBitmap);
+		} catch (Exception e) {
+			Log.e(TAG, "Error occurred while adding local image file: "
+					+ e.getMessage());
+		}
+		return scaledBitmap;
+	}
+
+	private static void createImageFileFromBitmap(final Context context,
+			final DatabaseHelper databaseHelper,
+			int screenX,
+			int screenY,
+			final MultiBackgroundImage mbi,
+			Bitmap srcBitmap) throws IOException {
+
+		final int imageId = mbi.get_id();
+		final Bitmap copiedBitmap = srcBitmap.copy(srcBitmap.getConfig(), true);
+		// Handler handler = new Handler(Looper.getMainLooper());
+		// handler.postDelayed(new Runnable() {
+		new Thread(new Runnable() {
+			public void run() {
+
+				String localImageFileName = MultiBackgroundUtilities
+						.generateFileNameFromImageId(imageId);
+				OutputStream outStream = null;
+				String localImagePath = null;
+				int isImageOnExternalStorage = 0;
+				try {
+					/*
+					 * Attempt to store the bitmap on external storage first. If
+					 * this fails due to some reason, store the bitmap on
+					 * internal storage.
+					 */
+					if (MultiBackgroundStorageUtilities
+							.isExternalStorageAvailable()
+							&& !MultiBackgroundStorageUtilities
+									.isExternalStorageReadOnly()) {
+						File outFile = new File(context
+								.getExternalFilesDir(null), localImageFileName);
+						if (outFile != null) {
+							outStream = new FileOutputStream(outFile);
+							isImageOnExternalStorage = 1;
+							localImagePath = outFile.getAbsolutePath();
+							Log.d(TAG,
+									"Using external storage to store local image");
+						}
+					}
+					/*
+					 * If SD card is not mounted or there was an issue in
+					 * opening the file, use internal storage
+					 */
+					if (isImageOnExternalStorage <= 0) {
+						outStream = context.openFileOutput(localImageFileName,
+								Context.MODE_PRIVATE);
+						localImagePath = MultiBackgroundUtilities
+								.generateLocalFilePath(context,
+										localImageFileName);
+						isImageOnExternalStorage = 0;
+						Log.d(TAG,
+								"Using internal storage to store local image");
+					}
+					copiedBitmap.compress(Bitmap.CompressFormat.PNG, 90,
+							outStream);
+					Log.d(TAG, "Copied the image file locally.");
+				} catch (Exception e) {
+					Toast.makeText(context,
+							"Unable to copy image file locally",
+							Toast.LENGTH_LONG).show();
+					Log.e(TAG, "Unable to copy image file locally: "
+							+ e.getMessage());
+				} finally {
+					if (outStream != null) {
+						try {
+							outStream.flush();
+							outStream.close();
+						} catch (IOException e) {
+							Log.e(TAG, "Unable to close output stream");
+						}
+						if (copiedBitmap != null) {
+							copiedBitmap.recycle();
+						}
+					}
+				}
+
+				databaseHelper.addLocalmagePathToDatabase(mbi.get_id(),
+						localImagePath, isImageOnExternalStorage);
+				databaseHelper.setImagePathRowUpdated(mbi.get_id(), 0);
+				mbi.setImagePathRowUpdated(0);
+				Log.d(TAG, "Saved local image file for image with ID: "
+						+ mbi.get_id());
+				/*
+				 * Delete the file from internal storage if external storage
+				 * file is stored successfully.
+				 */
+				if (isImageOnExternalStorage > 0) {
+					String internalStorageFilePath = MultiBackgroundUtilities
+							.generateLocalFilePath(context, localImageFileName);
+					File file = new File(internalStorageFilePath);
+					if (file.exists()) {
+						file.delete();
+					}
+				}
+			}
+		}).start();
 	}
 }

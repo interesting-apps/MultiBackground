@@ -24,6 +24,18 @@ public class MultiBackgroundImage implements Comparable<MultiBackgroundImage> {
 		public String toString() {
 			return imageSize;
 		}
+
+		public static ImageSize fromString(String text) {
+			if (text != null) {
+				for (ImageSize is : ImageSize.values()) {
+					if (text.equalsIgnoreCase(is.toString())) {
+						return is;
+					}
+				}
+			}
+			throw new IllegalArgumentException("Unable to match " + text
+					+ " with any Enum argument.");
+		}
 	};
 
 	private int _id;
@@ -32,18 +44,22 @@ public class MultiBackgroundImage implements Comparable<MultiBackgroundImage> {
 
 	private String path;
 	private ImageSize imageSize;
+	private int isImagePathRowUpdated;
+
 	private double aspectRatio = -1.0;
 	private static final String TAG = "MultiBackgroundImage";
 
 	public MultiBackgroundImage(int _id,
 			int imageNumber,
 			String path,
-			ImageSize imageSize) {
+			ImageSize imageSize,
+			int isImagePathRowUpdated) {
 		super();
 		this._id = _id;
 		this.nextImageNumber = imageNumber;
 		this.path = path;
 		this.imageSize = imageSize;
+		this.isImagePathRowUpdated = isImagePathRowUpdated;
 	}
 
 	public int get_id() {
@@ -115,13 +131,13 @@ public class MultiBackgroundImage implements Comparable<MultiBackgroundImage> {
 						.getColumnIndex(MultiBackgroundConstants.NEXT_IMAGE_NUMBER_COLUMN));
 		String cursorPath = cursor.getString(cursor
 				.getColumnIndex(MultiBackgroundConstants.PATH_COLUMN));
-		ImageSize imageSize = ImageSize
-				.valueOf(cursor
-						.getString(
-								cursor.getColumnIndex(MultiBackgroundConstants.IMAGE_SIZE_COLUMN))
-						.toUpperCase());
+		ImageSize imageSize = ImageSize.fromString(cursor.getString(cursor
+				.getColumnIndex(MultiBackgroundConstants.IMAGE_SIZE_COLUMN)));
+		int isImagePathRowUpdated = cursor
+				.getInt(cursor
+						.getColumnIndex(MultiBackgroundConstants.IS_IMAGE_PATH_ROW_UPDATED_COLUMN));
 		return new MultiBackgroundImage(cursor_id, cursorImageNumber,
-				cursorPath, imageSize);
+				cursorPath, imageSize, isImagePathRowUpdated);
 	}
 
 	/**
@@ -133,7 +149,8 @@ public class MultiBackgroundImage implements Comparable<MultiBackgroundImage> {
 		sb.append("MultiBackgroundImage: _id = ").append(_id).append(
 				" nextImageNumber = ").append(nextImageNumber).append(
 				" path = ").append(path).append(" image_size = ").append(
-				imageSize.toString());
+				imageSize.toString()).append(" is image path row updated = ")
+				.append(isImagePathRowUpdated);
 		return sb.toString();
 	}
 
@@ -152,5 +169,20 @@ public class MultiBackgroundImage implements Comparable<MultiBackgroundImage> {
 
 	public void setDeletedImage(boolean isDeletedImage) {
 		this.isDeletedImage = isDeletedImage;
+	}
+
+	public int isImagePathRowUpdated() {
+		return isImagePathRowUpdated;
+	}
+
+	public void setImagePathRowUpdated(int isImagePathRowUpdated) {
+		this.isImagePathRowUpdated = isImagePathRowUpdated;
+	}
+
+	@Override
+	public MultiBackgroundImage clone() {
+		MultiBackgroundImage newMbi = new MultiBackgroundImage(_id,
+				nextImageNumber, path, imageSize, isImagePathRowUpdated);
+		return newMbi;
 	}
 }

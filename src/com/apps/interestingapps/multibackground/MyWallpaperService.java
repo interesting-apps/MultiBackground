@@ -1,14 +1,15 @@
 package com.apps.interestingapps.multibackground;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
-import android.graphics.Rect;
 import android.os.Build;
 import android.os.Handler;
 import android.preference.PreferenceManager;
@@ -21,9 +22,9 @@ import android.view.WindowManager;
 
 import com.apps.interestingapps.multibackground.common.CropButtonDimensions;
 import com.apps.interestingapps.multibackground.common.DatabaseHelper;
-import com.apps.interestingapps.multibackground.common.MultiBackgroundCropRectangle;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundImage;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundImage.ImageSize;
+import com.apps.interestingapps.multibackground.common.MultiBackgroundLocalImage;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundUtilities;
 
 public class MyWallpaperService extends WallpaperService {
@@ -52,6 +53,7 @@ public class MyWallpaperService extends WallpaperService {
 		private Bitmap currentBitmap;
 		private CropButtonDimensions cbd;
 		private int cbdLength = 0, cbdHeight = 0;
+		private Map<Integer, Bitmap> leftMiddleAndRightBitmaps = new HashMap<Integer, Bitmap>();
 
 		private int imageOrder = 1;
 
@@ -202,102 +204,22 @@ public class MyWallpaperService extends WallpaperService {
 		private void changeBackground(Canvas canvas) {
 			if (changeBackground) {
 				Bitmap scaledBitmap = null;
-				Rect srcBitmapRectangle = null, destBitmapRectangle = null;
-				ImageSize imageSize = null;
-				/*
-				 * TODO: Try to optimize this, so that if recycling is not
-				 * required, we can skip this
-				 */
-				if (currentBitmap != null) {
-					currentBitmap.recycle();
-				}
-				getNextImageNumber();
-				if (imageList.size() != 0 && currentImageNumber != -1) {
-					String imagePath = imageList.get(currentImageNumber)
-							.getPath();
-					try {
-						imageSize = imageList.get(currentImageNumber)
-								.getImageSize();
-						scaledBitmap = MultiBackgroundUtilities
-								.scaleDownImageAndDecode(imagePath, screenX,
-										screenY, imageSize);
-						if (imageSize == ImageSize.CROP_IMAGE) {
-							MultiBackgroundCropRectangle rect = databaseHelper
-									.getCropRectangle(imageList.get(
-											currentImageNumber).get_id());
-							if (rect != null) {
-								if (cbd == null
-										|| cbd.getCropButtonLength() == 0
-										|| cbd.getCropButtonHeight() == 0) {
-									cbd = databaseHelper
-											.getCropButtonDimensions();
-								}
 
-								if (cbd != null) {
-									cbdLength = cbd.getCropButtonLength() / 2;
-									cbdHeight = cbd.getCropButtonHeight() / 2;
-								}
-								int cropLeft = rect.getCropLeft()
-										- rect.getImageOffsetLeft();
-								int cropTop = rect.getCropTop()
-										- rect.getImageOffsetTop();
-								double lengthScaling = 2 * ((1.0 * scaledBitmap
-										.getWidth() / 2) / (scaledBitmap
-										.getWidth() / 2 - cbdLength * 2));
-								double heightScaling = 2 * ((1.0 * scaledBitmap
-										.getHeight() / 2) / (scaledBitmap
-										.getHeight() / 2 - cbdHeight * 2));
-
-								srcBitmapRectangle = new Rect(
-										(int) ((cropLeft) * lengthScaling),
-										(int) ((cropTop) * heightScaling),
-										(int) (((cropLeft + rect
-												.getCropLength())) * lengthScaling),
-										(int) (((cropTop + rect.getCropHeight())) * heightScaling));
-								destBitmapRectangle = new Rect(0, 0, screenX,
-										screenY);
-							}
-						}
-					} catch (Exception e) {
-						Log.d(TAG,
-								"Unable to load image for the given path due to: "
-										+ e);
-					}
-					if (scaledBitmap == null) {
-						scaledBitmap = MultiBackgroundUtilities
-								.scaleDownImageAndDecode(getResources(),
-										R.drawable.default_wallpaper, screenX,
-										screenY);
-					}
-				} else {
-					/*
-					 * Show some default background if there is some problem in
-					 * opening database
-					 */
-					Log.i(TAG, "CurrentImageNumber : " + currentImageNumber);
-					scaledBitmap = MultiBackgroundUtilities
-							.scaleDownImageAndDecode(getResources(),
-									R.drawable.default_wallpaper, screenX,
-									screenY);
-
-				}
+				// /*
+				// * TODO: Try to optimize this, so that if recycling is not
+				// * required, we can skip this
+				// */
+				// if (currentBitmap != null) {
+				// currentBitmap.recycle();
+				// }
+				scaledBitmap = updateBitmapMap(actualDistanceX < 0);
 				changeBackground = false;
 				canvas.drawColor(0, android.graphics.PorterDuff.Mode.CLEAR);
 				if (scaledBitmap != null) {
-					if (imageSize == ImageSize.CROP_IMAGE
-							&& srcBitmapRectangle != null
-							&& destBitmapRectangle != null) {
-						canvas.drawBitmap(scaledBitmap, srcBitmapRectangle,
-								destBitmapRectangle, null);
-					} else {
-						int wallpaperX = screenX / 2 - scaledBitmap.getWidth()
-								/ 2;
-						int wallpaperY = screenY / 2 - scaledBitmap.getHeight()
-								/ 2;
-						canvas.drawBitmap(scaledBitmap,
-								wallpaperX > 0 ? wallpaperX : 0,
-								wallpaperY > 0 ? wallpaperY : 0, null);
-					}
+					int wallpaperX = screenX / 2 - scaledBitmap.getWidth() / 2;
+					int wallpaperY = screenY / 2 - scaledBitmap.getHeight() / 2;
+					canvas.drawBitmap(scaledBitmap, wallpaperX > 0 ? wallpaperX
+							: 0, wallpaperY > 0 ? wallpaperY : 0, null);
 					currentBitmap = scaledBitmap;
 				}
 			}
@@ -307,6 +229,9 @@ public class MyWallpaperService extends WallpaperService {
 			if (databaseHelper.isDatabaseUpdated()) {
 				imageList = databaseHelper.getAllImages();
 				databaseHelper.setDatabaseUpdated(false);
+				leftMiddleAndRightBitmaps.put(1, null);
+				leftMiddleAndRightBitmaps.put(2, null);
+				leftMiddleAndRightBitmaps.put(3, null);
 			}
 			if (imageList.size() == 0) {
 				currentImageNumber = -1;
@@ -352,6 +277,173 @@ public class MyWallpaperService extends WallpaperService {
 			usedIntegers.add(randomNumber);
 			return randomNumber;
 
+		}
+
+		private Bitmap updateBitmapMap(boolean isMoveToRight) {
+			getNextImageNumber();
+			if (imageList.size() > 3) {
+				if (isMoveToRight) {
+					Bitmap bitmapToRecycle = leftMiddleAndRightBitmaps.get(1);
+
+					leftMiddleAndRightBitmaps.put(1, leftMiddleAndRightBitmaps
+							.get(2));
+					leftMiddleAndRightBitmaps.put(2, leftMiddleAndRightBitmaps
+							.get(3));
+
+					if (bitmapToRecycle != null) {
+						bitmapToRecycle.recycle();
+						leftMiddleAndRightBitmaps.put(1, null);
+					}
+					final int rightImageNumber = getRightImageNumber(currentImageNumber);
+					new Thread(new Runnable() {
+						public void run() {
+							Bitmap bitmap = readBitmapToMemory(rightImageNumber);
+							leftMiddleAndRightBitmaps.put(3, bitmap);
+						}
+					}).start();
+				} else {
+					Bitmap bitmapToRecycle = leftMiddleAndRightBitmaps.get(3);
+					leftMiddleAndRightBitmaps.put(3, leftMiddleAndRightBitmaps
+							.get(2));
+					leftMiddleAndRightBitmaps.put(2, leftMiddleAndRightBitmaps
+							.get(1));
+					if (bitmapToRecycle != null) {
+						bitmapToRecycle.recycle();
+						leftMiddleAndRightBitmaps.put(3, null);
+					}
+					final int leftImageNumber = getLeftImageNumber(currentImageNumber);
+					new Thread(new Runnable() {
+						public void run() {
+							Bitmap bitmap = readBitmapToMemory(leftImageNumber);
+							leftMiddleAndRightBitmaps.put(1, bitmap);
+						}
+					}).start();
+				}
+				Bitmap result = leftMiddleAndRightBitmaps.get(2);
+				if (result == null) {
+					result = readBitmapToMemory(currentImageNumber);
+					leftMiddleAndRightBitmaps.put(2, result);
+				} else if (result.isRecycled()) {
+					Log.i(TAG, "Using recycled Bitmap");
+					result = readBitmapToMemory(currentImageNumber);
+				}
+				return result;
+			} else {
+				int mapKey = currentImageNumber + 1;
+				Bitmap nextBitmap = leftMiddleAndRightBitmaps.get(mapKey);
+				if (nextBitmap == null) {
+					nextBitmap = readBitmapToMemory(currentImageNumber);
+					leftMiddleAndRightBitmaps.put(mapKey, nextBitmap);
+				}
+				return nextBitmap;
+			}
+		}
+
+		private int getLeftImageNumber(int imageNumber) {
+			if (imageList.size() == 0 || imageNumber < 0) {
+				return -1;
+			}
+			switch (imageOrder) {
+			case 1:
+				if (imageNumber == 0) {
+					imageNumber = imageList.size();
+				}
+				return imageNumber - 1;
+			case 2:
+				// Random order
+				return getRandomNumber(imageList, usedIntegers);
+			default:
+				return -1;
+			}
+
+		}
+
+		private int getRightImageNumber(int imageNumber) {
+			if (imageList.size() == 0 || imageNumber < 0) {
+				return -1;
+			}
+
+			switch (imageOrder) {
+			case 1:
+				return (imageNumber + 1) % imageList.size();
+			case 2:
+				// Random order
+				return getRandomNumber(imageList, usedIntegers);
+			default:
+				return -1;
+			}
+		}
+
+		private Bitmap readBitmapToMemory(int imageNumber) {
+			Bitmap scaledBitmap = null;
+			ImageSize imageSize = null;
+			if (imageList.size() != 0 && imageNumber != -1) {
+				MultiBackgroundImage mbi = imageList.get(imageNumber);
+				int imageId = mbi.get_id();
+				imageSize = mbi.getImageSize();
+				boolean isBitmapLoaded = false;
+				if (mbi.isImagePathRowUpdated() > 0) {
+					scaledBitmap = MultiBackgroundUtilities
+							.createLocalImageAndSave(getApplicationContext(),
+									databaseHelper, screenX, screenY, cbd, mbi);
+					if (scaledBitmap != null) {
+						isBitmapLoaded = true;
+					}
+
+				}
+				if (!isBitmapLoaded) {
+					MultiBackgroundLocalImage mbli = databaseHelper
+							.getLocalImagePath(imageId);
+					try {
+						scaledBitmap = MultiBackgroundUtilities
+								.scaleDownImageAndDecode(mbli
+										.getLocalImagePath(), screenX, screenY,
+										imageSize);
+					} catch (Exception e) {
+
+						if (mbli.isImageOnExternalStorage() > 0) {
+							Log.d(TAG,
+									"Unable to read local image from external storage due to: "
+											+ e);
+							/*
+							 * Failed to load image from external storage. Save
+							 * it to internal storage and load the bitmap
+							 */
+							mbi.setImagePathRowUpdated(1);
+							try {
+								scaledBitmap = MultiBackgroundUtilities
+										.createLocalImageAndSave(
+												getApplicationContext(),
+												databaseHelper, screenX,
+												screenY, cbd, mbi);
+							} catch (Exception e1) {
+								Log.d(TAG, "Unable to load image from "
+										+ "internal storage due to: " + e1);
+							}
+						} else {
+							Log.d(TAG, "Unable to load image from "
+									+ "internal storage due to: " + e);
+						}
+					}
+				}
+				if (scaledBitmap == null) {
+					scaledBitmap = MultiBackgroundUtilities
+							.scaleDownImageAndDecode(getResources(),
+									R.drawable.default_wallpaper, screenX,
+									screenY);
+				}
+			} else {
+				/*
+				 * Show some default background if there is some problem in
+				 * opening database
+				 */
+				Log.i(TAG, "CurrentImageNumber : " + imageNumber);
+				scaledBitmap = MultiBackgroundUtilities
+						.scaleDownImageAndDecode(getResources(),
+								R.drawable.default_wallpaper, screenX, screenY);
+
+			}
+			return scaledBitmap;
 		}
 	}
 }

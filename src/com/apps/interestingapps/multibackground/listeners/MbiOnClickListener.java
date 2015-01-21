@@ -21,17 +21,19 @@ public class MbiOnClickListener implements OnClickListener {
 	private int width, height;
 	private static final String TAG = "MbiClickListener";
 	private RadioGroup radioGroup;
-	private MultiBackgroundImage mbi;
+	private MultiBackgroundImage clickedMbi, previousMbi;
 
 	public MbiOnClickListener(SetWallpaperActivity setWallpaperActivity,
-			MultiBackgroundImage mbi,
+			MultiBackgroundImage clickedMbi,
+			MultiBackgroundImage previousMbi,
 			ImageView currentImageView,
 			String path,
 			int width,
 			int height,
 			RadioGroup radioGroup) {
 		this.setWallpaperActivity = setWallpaperActivity;
-		this.mbi = mbi;
+		this.clickedMbi = clickedMbi;
+		this.previousMbi = previousMbi;
 		this.path = path;
 		this.currentImageView = currentImageView;
 		this.width = width;
@@ -40,7 +42,7 @@ public class MbiOnClickListener implements OnClickListener {
 	}
 
 	public void onClick(View v) {
-		if (mbi.isDeletedImage()) {
+		if (clickedMbi.isDeletedImage()) {
 			Log.w(TAG, "Unable to load image from the given path." + path
 					+ " Loading the default image.");
 			Bitmap bitmap = MultiBackgroundUtilities.scaleDownImageAndDecode(
@@ -52,7 +54,7 @@ public class MbiOnClickListener implements OnClickListener {
 			Log.i(TAG, "Image source deleted.");
 		} else {
 
-			switch (mbi.getImageSize()) {
+			switch (clickedMbi.getImageSize()) {
 			case COVER_FULL_SCREEN:
 				radioGroup.check(R.id.radio_cover_full_screen);
 				setWallpaperActivity.hideCropButtonsAndRectangle();
@@ -69,7 +71,7 @@ public class MbiOnClickListener implements OnClickListener {
 			Bitmap bitmap = null;
 			try {
 				bitmap = MultiBackgroundUtilities.scaleDownImageAndDecode(path,
-						width, height, mbi.getImageSize());
+						width, height, clickedMbi.getImageSize());
 			} catch (Exception e) {
 				Log.d(TAG, "Unable to create bitmap for the given path due to "
 						+ e);
@@ -78,8 +80,8 @@ public class MbiOnClickListener implements OnClickListener {
 			currentImageView.setImageBitmap(bitmap);
 			currentImageView.setVisibility(View.VISIBLE);
 			radioGroup.setVisibility(View.VISIBLE);
-			if (mbi.getImageSize() == ImageSize.CROP_IMAGE) {
-				setWallpaperActivity.showCropButtonsAndRectangle(mbi.get_id(),
+			if (clickedMbi.getImageSize() == ImageSize.CROP_IMAGE) {
+				setWallpaperActivity.showCropButtonsAndRectangle(clickedMbi.get_id(),
 						scaledWidthHeight);
 			}
 		}
@@ -90,7 +92,8 @@ public class MbiOnClickListener implements OnClickListener {
 		}
 		v.setBackgroundResource(R.drawable.border);
 		setWallpaperActivity.setPreviousClickedImageView((ImageView) v);
-		setWallpaperActivity.setCurrentSelectedMbi(mbi);
+		setWallpaperActivity.setPreviousSelectedMbi(previousMbi);
+		setWallpaperActivity.setCurrentSelectedMbi(clickedMbi);
 	}
 
 }

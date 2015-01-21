@@ -47,6 +47,7 @@ import com.apps.interestingapps.multibackground.common.MultiBackgroundCropRectan
 import com.apps.interestingapps.multibackground.common.MultiBackgroundImage;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundImage.ImageSize;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundUtilities;
+import com.apps.interestingapps.multibackground.common.SaveLocalImageAsyncTask;
 import com.apps.interestingapps.multibackground.listeners.AddImageClickListener;
 import com.apps.interestingapps.multibackground.listeners.CropButtonTouchListener;
 import com.apps.interestingapps.multibackground.listeners.CropButtonTouchListener.CropButtonPosition;
@@ -77,12 +78,12 @@ public class SetWallpaperActivity extends Activity {
 			quarterScreenHeight;
 	private int halfScreenWidth, halfScreenHeight;
 	private RadioGroup radioGroup;
-	private MultiBackgroundImage currentSelectedMbi;
+	private MultiBackgroundImage currentSelectedMbi, previousSelectedMbi;
 	private AdView adview;
 	private RelativeLayout parentCropRelativeLayout;
 	private RelativeLayout centralImageViewRelativeLayout;
 	private ImageView previousClickedImageView;
-	private int previousClickedImageIndex = 0;
+	private int beforePauseClickedImageIndex = 0;
 	private Button setWallpaperButton;
 	private ImageView longClickedImageView;
 	private ImageView leftTopCropButton, leftBottomCropButton,
@@ -93,6 +94,8 @@ public class SetWallpaperActivity extends Activity {
 	private CropButtonDimensions cropButtonDimensions;
 	private boolean layoutPaddingSet = false;
 	private boolean onCreateCalled = false;
+	private int cbdLength = 0, cbdHeight = 0;
+	private String extStorageDirectory = null;
 
 	@SuppressWarnings("deprecation")
 	@Override
@@ -119,6 +122,8 @@ public class SetWallpaperActivity extends Activity {
 
 		initializeStaticViews();
 
+		extStorageDirectory = Environment.getExternalStorageDirectory()
+				.toString();
 		SharedPreferences prefs = getSharedPreferences(
 				MultiBackgroundConstants.PREFERENCES_FILE_NAME, 0);
 		onCreateCalled = true;
@@ -136,9 +141,9 @@ public class SetWallpaperActivity extends Activity {
 	public void onPause() {
 		super.onPause();
 		if (previousClickedImageView != null) {
-			previousClickedImageIndex = getIndexOfImageView(previousClickedImageView);
+			beforePauseClickedImageIndex = getIndexOfImageView(previousClickedImageView);
 		} else {
-			previousClickedImageIndex = 0;
+			beforePauseClickedImageIndex = 0;
 		}
 	}
 
@@ -154,14 +159,15 @@ public class SetWallpaperActivity extends Activity {
 		parentCropRelativeLayout.getLayoutParams().height = halfScreenHeight;
 
 		if (mbiList.size() > 0) {
-			if (previousClickedImageIndex >= mbiList.size()) {
-				previousClickedImageIndex = 0;
+			if (beforePauseClickedImageIndex >= mbiList.size()) {
+				beforePauseClickedImageIndex = 0;
 			}
 			MbiOnClickListener onClick = new MbiOnClickListener(this, mbiList
-					.get(previousClickedImageIndex), currentImageView, mbiList
-					.get(previousClickedImageIndex).getPath(), halfScreenWidth,
-					halfScreenHeight, radioGroup);
-			onClick.onClick(imageViewList.get(previousClickedImageIndex));
+					.get(beforePauseClickedImageIndex), previousSelectedMbi,
+					currentImageView, mbiList.get(beforePauseClickedImageIndex)
+							.getPath(), halfScreenWidth, halfScreenHeight,
+					radioGroup);
+			onClick.onClick(imageViewList.get(beforePauseClickedImageIndex));
 		}
 		/*
 		 * Android 4.0 device id: 64FFE02AABF389054771188E3CF39B63
@@ -330,8 +336,47 @@ public class SetWallpaperActivity extends Activity {
 		 */
 		removeAllImageViews();
 		List<MultiBackgroundImage> allImages = databaseHelper.getAllImages();
-		for (MultiBackgroundImage image : allImages) {
-			addImageToHorizontalLayout(image);
+		final Bitmap[] imageThumbnails = new Bitmap[allImages.size()];
+		final Thread[] thumbNailThreads = new Thread[allImages.size()];
+		boolean errorInStartingThread = false;
+		for (int i = 0; i < imageThumbnails.length; i++) {
+			final MultiBackgroundImage image = allImages.get(i);
+			final int x = i;
+			Thread t = new Thread(new Runnable() {
+				public void run() {
+					Bitmap bitmap = generateImageThumbnail(image,
+							quarterScreenWidth);
+					imageThumbnails[x] = bitmap;
+				}
+
+			});
+			thumbNailThreads[x] = t;
+			try {
+				t.start();
+			} catch (Exception e) {
+				Log.d(TAG, "Error occurred while starting thread.");
+				errorInStartingThread = true;
+			}
+		}
+		if (errorInStartingThread) {
+			/*
+			 * Switch back to old way of adding images serially.
+			 */
+			for (MultiBackgroundImage image : allImages) {
+				addImageToHorizontalLayout(image, null);
+			}
+		} else {
+			for (int i = 0; i < imageThumbnails.length; i++) {
+				try {
+					thumbNailThreads[i].join();
+					addImageToHorizontalLayout(allImages.get(i),
+							imageThumbnails[i]);
+				} catch (InterruptedException e) {
+					Log.d(TAG, "Unable to wait for thread number: " + i
+							+ " to finish.");
+					addImageToHorizontalLayout(allImages.get(i), null);
+				}
+			}
 		}
 	}
 
@@ -554,21 +599,12 @@ public class SetWallpaperActivity extends Activity {
 	 *
 	 * @param imagePath
 	 */
-	private void addImageToHorizontalLayout(MultiBackgroundImage mbi) {
+	private void addImageToHorizontalLayout(MultiBackgroundImage mbi,
+			Bitmap bitmap) {
 		ImageView iv = new ImageView(getApplicationContext());
 		iv.setPadding(5, 5, 5, 5);
-		Bitmap bitmap = null;
-		try {
-			bitmap = generateImageThumbnail(mbi.getPath(), quarterScreenWidth);
-		} catch (Exception e) {
-			Log.d(TAG, "Unable to create bitmap for the given path due to " + e);
-		}
 		if (bitmap == null) {
-			Log.w(TAG,
-					"Unable to load image from the given path. Loading the default image:");
-			bitmap = generateImageThumbnail(R.drawable.image_not_found,
-					quarterScreenWidth);
-			mbi.setDeletedImage(true);
+			bitmap = generateImageThumbnail(mbi, quarterScreenWidth);
 		}
 		iv.setImageBitmap(bitmap);
 		if (Build.VERSION.SDK_INT >= 11) {
@@ -580,19 +616,28 @@ public class SetWallpaperActivity extends Activity {
 			registerForContextMenu(iv);
 		}
 		iv.setOnClickListener(new MbiOnClickListener(this, mbi,
-				currentImageView, mbi.getPath(), halfScreenWidth,
-				halfScreenHeight, radioGroup));
+				currentSelectedMbi, currentImageView, mbi.getPath(),
+				halfScreenWidth, halfScreenHeight, radioGroup));
 		addImageView(mbi, iv);
 	}
 
-	private Bitmap generateImageThumbnail(String imagePath, int width) {
+	private Bitmap generateImageThumbnail(MultiBackgroundImage mbi, int width) {
 		Bitmap scaledBitmap = null;
 		try {
-			scaledBitmap = MultiBackgroundUtilities.scaleDownImageAndDecode(
-					imagePath, width, width, ImageSize.COVER_FULL_SCREEN);
+			scaledBitmap = MultiBackgroundUtilities.scaleDownImageAndDecode(mbi
+					.getPath(), width, width, ImageSize.COVER_FULL_SCREEN);
 		} catch (OutOfMemoryError oom) {
 			Toast.makeText(this, "Image is very large to load. ",
 					Toast.LENGTH_SHORT).show();
+		} catch (Exception e) {
+			Log.d(TAG, "Unable to create bitmap for the given path due to " + e);
+		}
+		if (scaledBitmap == null) {
+			Log.w(TAG,
+					"Unable to load image from the given path. Loading the default image:");
+			scaledBitmap = generateImageThumbnail(R.drawable.image_not_found,
+					quarterScreenWidth);
+			mbi.setDeletedImage(true);
 		}
 		return scaledBitmap;
 	}
@@ -631,11 +676,12 @@ public class SetWallpaperActivity extends Activity {
 								+ ") are already added to list.",
 						Toast.LENGTH_SHORT).show();
 			} else {
-				addImageToHorizontalLayout(newMbi);
+				addImageToHorizontalLayout(newMbi, null);
 
 				MbiOnClickListener imageOnClickListener = new MbiOnClickListener(
-						this, newMbi, currentImageView, newMbi.getPath(),
-						halfScreenWidth, halfScreenHeight, radioGroup);
+						this, newMbi, currentSelectedMbi, currentImageView,
+						newMbi.getPath(), halfScreenWidth, halfScreenHeight,
+						radioGroup);
 				imageOnClickListener.onClick(imageViewList.get(imageViewList
 						.size() - 1));
 
@@ -644,7 +690,7 @@ public class SetWallpaperActivity extends Activity {
 						hsv.fullScroll(HorizontalScrollView.FOCUS_RIGHT);
 					}
 				}, 100L);
-				previousClickedImageIndex = mbiList.size() - 1;
+				beforePauseClickedImageIndex = mbiList.size() - 1;
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -768,14 +814,14 @@ public class SetWallpaperActivity extends Activity {
 				if (mbiList.size() > 0) {
 					if (indexOfImage == 0) {
 						MbiOnClickListener onClick = new MbiOnClickListener(
-								this, mbiList.get(0), currentImageView, mbiList
-										.get(0).getPath(), halfScreenWidth,
+								this, mbiList.get(0), null, currentImageView,
+								mbiList.get(0).getPath(), halfScreenWidth,
 								halfScreenHeight, radioGroup);
 						onClick.onClick(imageViewList.get(0));
 						Log.i(TAG, "Image with index 0 deleted.");
 					} else {
 						MbiOnClickListener onClick = new MbiOnClickListener(
-								this, mbiList.get(indexOfImage - 1),
+								this, mbiList.get(indexOfImage - 1), null,
 								currentImageView, mbiList.get(indexOfImage - 1)
 										.getPath(), halfScreenWidth,
 								halfScreenHeight, radioGroup);
@@ -827,6 +873,15 @@ public class SetWallpaperActivity extends Activity {
 	}
 
 	public void setCurrentSelectedMbi(MultiBackgroundImage mbi) {
+		if (currentSelectedMbi != null) {
+			// MultiBackgroundImage cloneOfPreviousMbi = currentSelectedMbi
+			// .clone();
+			if (currentSelectedMbi.isImagePathRowUpdated() > 0) {
+				new SaveLocalImageAsyncTask(getApplicationContext(),
+						databaseHelper, currentSelectedMbi, screenWidth,
+						screenHeight, cropButtonDimensions).execute();
+			}
+		}
 		currentSelectedMbi = mbi;
 	}
 
@@ -870,6 +925,7 @@ public class SetWallpaperActivity extends Activity {
 				databaseHelper.updateImageSize(currentSelectedMbi.get_id(),
 						selectedImageSize);
 				currentSelectedMbi.setImageSize(selectedImageSize);
+				currentSelectedMbi.setImagePathRowUpdated(1);
 				Bitmap sourceBitmap = ((BitmapDrawable) currentImageView
 						.getDrawable()).getBitmap();
 				int[] scaledWidthHeight = MultiBackgroundUtilities
@@ -1117,9 +1173,19 @@ public class SetWallpaperActivity extends Activity {
 				leftTopButtonLayoutParams.leftMargin,
 				leftTopButtonLayoutParams.topMargin, cropRectangleLength,
 				cropRectangleHeight);
+		currentSelectedMbi.setImagePathRowUpdated(1);
 
 		if (updateResult < 1) {
 			Log.e(TAG, "Unable to update crop rectangle details");
 		}
+	}
+
+	public MultiBackgroundImage getPreviousSelectedMbi() {
+		return previousSelectedMbi;
+	}
+
+	public void
+			setPreviousSelectedMbi(MultiBackgroundImage previousSelectedMbi) {
+		this.previousSelectedMbi = previousSelectedMbi;
 	}
 }

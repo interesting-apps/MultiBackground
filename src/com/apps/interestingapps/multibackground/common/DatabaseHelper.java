@@ -1,5 +1,6 @@
 package com.apps.interestingapps.multibackground.common;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,7 +35,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			MultiBackgroundConstants.ID_COLUMN,
 			MultiBackgroundConstants.NEXT_IMAGE_NUMBER_COLUMN,
 			MultiBackgroundConstants.PATH_COLUMN,
-			MultiBackgroundConstants.IMAGE_SIZE_COLUMN };
+			MultiBackgroundConstants.IMAGE_SIZE_COLUMN,
+			MultiBackgroundConstants.IS_IMAGE_PATH_ROW_UPDATED_COLUMN };
 
 	private String[] imageCropAllColumns = {
 			MultiBackgroundConstants.ID_COLUMN,
@@ -49,6 +51,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 	private String[] cropButtonDimensionsAllColumns = {
 			MultiBackgroundConstants.CROP_BUTTON_LENGTH_COLUMN,
 			MultiBackgroundConstants.CROP_BUTTON_HEIGHT_COLUMN };
+
+	private String[] localImagePathAllColumns = {
+			MultiBackgroundConstants.IMAGE_ID_COLUMN,
+			MultiBackgroundConstants.LOCAL_PATH_COLUMN,
+			MultiBackgroundConstants.IMAGE_ON_EXTERNAL_STORAGE_COLUMN };
 
 	private DatabaseHelper(Context context) {
 		super(context, MultiBackgroundConstants.DATABASE_NAME, null,
@@ -326,6 +333,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			values.put(MultiBackgroundConstants.PATH_COLUMN, path);
 			values.put(MultiBackgroundConstants.IMAGE_SIZE_COLUMN,
 					MultiBackgroundImage.ImageSize.BEST_FIT.toString());
+			values.put(
+					MultiBackgroundConstants.IS_IMAGE_PATH_ROW_UPDATED_COLUMN,
+					1);
 			int insertId = (int) database.insert(
 					MultiBackgroundConstants.IMAGE_PATH_TABLE, null, values);
 			if (insertId < 0) {
@@ -334,7 +344,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			isDatabaseUpdated = true;
 			newMbi = new MultiBackgroundImage(insertId,
 					MultiBackgroundConstants.DEFAULT_NEXT_IMAGE_NUMBER, path,
-					MultiBackgroundImage.ImageSize.BEST_FIT);
+					MultiBackgroundImage.ImageSize.BEST_FIT, 1);
 			Log.i(TAG, "Successfully created a new MBI: " + newMbi);
 
 			/*
@@ -610,6 +620,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			/*
 			 * Delete the desired row using its id
 			 */
+			deleteLocalImage(mbiToDelete.get_id());
 			int numOfRowsAffected = database.delete(
 					MultiBackgroundConstants.IMAGE_PATH_TABLE,
 					MultiBackgroundConstants.ID_COLUMN + "=?",
@@ -647,6 +658,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		} else {
 			Log.d(TAG, "Updated the ImageSize for row with id:" + _id + " to "
 					+ imageSize);
+			setImagePathRowUpdated(_id, 1);
 			isDatabaseUpdated = true;
 		}
 		return rowsAffected;
@@ -715,6 +727,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		if (rowsAffected < 1) {
 			Log.e(TAG, "Unable to locate a row with image_id: " + imageId);
 		} else {
+			setImagePathRowUpdated(imageId, 1);
 			isDatabaseUpdated = true;
 		}
 		return rowsAffected;
@@ -733,11 +746,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 	 */
 	private void upgradeToLatestDatabaseVersion(SQLiteDatabase db) {
 		String query = "SELECT * FROM SQLITE_MASTER";
-		Cursor cursor = db.rawQuery(query, null);
+		Cursor tablesCursor = db.rawQuery(query, null);
 		boolean imageCropTableExists = false;
 		boolean cropButtonTableExists = false;
-		while (cursor.moveToNext()) {
-			String tableName = cursor.getString(cursor.getColumnIndex("name"));
+		boolean localImagePathTableExists = false;
+		boolean isImagePathRowUpdatedColumnExists = false;
+		while (tablesCursor.moveToNext()) {
+			String tableName = tablesCursor.getString(tablesCursor
+					.getColumnIndex("name"));
 			if (tableName
 					.equalsIgnoreCase(MultiBackgroundConstants.IMAGE_CROP_TABLE)) {
 				imageCropTableExists = true;
@@ -746,8 +762,19 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 					.equalsIgnoreCase(MultiBackgroundConstants.CROP_BUTTON_DIMENSIONS_TABLE)) {
 				cropButtonTableExists = true;
 			}
+			if (tableName
+					.equalsIgnoreCase(MultiBackgroundConstants.LOCAL_IMAGE_PATH_TABLE)) {
+				localImagePathTableExists = true;
+			}
 		}
-		cursor.close();
+		tablesCursor.close();
+		String pathTableQuery = "SELECT * FROM "
+				+ MultiBackgroundConstants.IMAGE_PATH_TABLE;
+		Cursor pathTableColumnsCursor = db.rawQuery(pathTableQuery, null);
+		if (pathTableColumnsCursor
+				.getColumnIndex(MultiBackgroundConstants.IS_IMAGE_PATH_ROW_UPDATED_COLUMN) >= 0) {
+			isImagePathRowUpdatedColumnExists = true;
+		}
 		try {
 			if (!imageCropTableExists) {
 				db.execSQL(MultiBackgroundConstants.CREATE_IMAGE_CROP_TABLE_QUERY);
@@ -756,6 +783,19 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			if (!cropButtonTableExists) {
 				db.execSQL(MultiBackgroundConstants.CREATE_CROP_BUTTON_DIMENSIONS_TABLE_QUERY);
 				Log.i(TAG, "Created Crop button dimensions table");
+			}
+			if (!localImagePathTableExists) {
+				db.execSQL(MultiBackgroundConstants.CREATE_LOCAL_IMAGE_PATH_TABLE_QUERY);
+				Log.i(TAG, "Created Local image path table");
+			}
+			if (!isImagePathRowUpdatedColumnExists) {
+				db.execSQL(MultiBackgroundConstants.ADD_IS_IMAGE_PATH_ROW_UPDATE_QUERY);
+				Log.i(TAG,
+						"Created "
+								+ MultiBackgroundConstants.IS_IMAGE_PATH_ROW_UPDATED_COLUMN
+								+ " column in "
+								+ MultiBackgroundConstants.IMAGE_PATH_TABLE
+								+ " table");
 			}
 		} catch (Exception e) {
 			Log.e(TAG, "Unable to create new tables");
@@ -774,7 +814,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 						"Error occurred recreating new database. Please go to settings and Clear App's data to resolve issue.",
 						Toast.LENGTH_LONG).show();
 			}
-
 		}
 	}
 
@@ -867,4 +906,117 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
 	}
 
+	/**
+	 *
+	 * @param imageId
+	 * @param localPath
+	 * @param isImageOnExternalStorage
+	 *            Should be greater 0 for indicating that image is stored on
+	 *            external storage. Should be 0 or less for internal storage.
+	 */
+	public void addLocalmagePathToDatabase(int imageId,
+			String localPath,
+			int isImageOnExternalStorage) {
+		if (localPath != null && localPath.length() > 0) {
+			Cursor imagePathCursor = database.query(
+					MultiBackgroundConstants.LOCAL_IMAGE_PATH_TABLE,
+					localImagePathAllColumns,
+					MultiBackgroundConstants.IMAGE_ID_COLUMN + " = ? ",
+					new String[] { Integer.toString(imageId), }, null, null,
+					null, null);
+			ContentValues values = new ContentValues();
+			values.put(MultiBackgroundConstants.LOCAL_PATH_COLUMN, localPath);
+			values.put(
+					MultiBackgroundConstants.IMAGE_ON_EXTERNAL_STORAGE_COLUMN,
+					isImageOnExternalStorage);
+			database.beginTransaction();
+			try {
+				if (imagePathCursor != null && imagePathCursor.getCount() > 0) {
+					/*
+					 * Image path already exists. Update the path.
+					 */
+					int rowsAffected = database.update(
+							MultiBackgroundConstants.LOCAL_IMAGE_PATH_TABLE,
+							values, MultiBackgroundConstants.IMAGE_ID_COLUMN
+									+ "=?", new String[] { Integer
+									.toString(imageId) });
+					if (rowsAffected < 1) {
+						Log.e(TAG, "Unable to update a row with image ID: "
+								+ imageId);
+					} else {
+						Log.d(TAG,
+								"Updated the local image path for image with id:"
+										+ imageId);
+						database.setTransactionSuccessful();
+					}
+				} else {
+					/*
+					 * Image path does not exists. Insert the path.
+					 */
+					values.put(MultiBackgroundConstants.IMAGE_ID_COLUMN,
+							imageId);
+					int insertId = (int) database.insert(
+							MultiBackgroundConstants.LOCAL_IMAGE_PATH_TABLE,
+							null, values);
+					if (insertId < 0) {
+						Log.e(TAG,
+								"Unable to add path for local image for new image.");
+						return;
+					}
+					database.setTransactionSuccessful();
+				}
+			} finally {
+				database.endTransaction();
+			}
+		}
+	}
+
+	public MultiBackgroundLocalImage getLocalImagePath(int imageId) {
+		Cursor recordCursor = database.query(
+				MultiBackgroundConstants.LOCAL_IMAGE_PATH_TABLE,
+				localImagePathAllColumns,
+				MultiBackgroundConstants.IMAGE_ID_COLUMN + "= ?",
+				new String[] { Integer.toString(imageId) }, null, null, null);
+		MultiBackgroundLocalImage result = null;
+		if (recordCursor.moveToFirst()) {
+			result = MultiBackgroundLocalImage.newInstance(recordCursor);
+		}
+		if (recordCursor != null) {
+			recordCursor.close();
+		}
+		return result;
+	}
+
+	private void deleteLocalImage(int imageId) {
+		Cursor imagePathCursor = database.query(
+				MultiBackgroundConstants.LOCAL_IMAGE_PATH_TABLE,
+				localImagePathAllColumns,
+				MultiBackgroundConstants.IMAGE_ID_COLUMN + " = ? ",
+				new String[] { Integer.toString(imageId), }, null, null, null,
+				null);
+		if (imagePathCursor != null && imagePathCursor.getCount() > 0) {
+			while (imagePathCursor.moveToNext()) {
+				String localPath = imagePathCursor
+						.getString(imagePathCursor
+								.getColumnIndex(MultiBackgroundConstants.LOCAL_PATH_COLUMN));
+				File f = new File(localPath);
+				if (f.exists()) {
+					f.delete();
+				}
+			}
+		}
+	}
+
+	public synchronized void setImagePathRowUpdated(int imageId, int newValue) {
+		ContentValues values = new ContentValues();
+		values.put(MultiBackgroundConstants.IS_IMAGE_PATH_ROW_UPDATED_COLUMN,
+				newValue);
+		int rowsAffected = database.update(
+				MultiBackgroundConstants.IMAGE_PATH_TABLE, values,
+				MultiBackgroundConstants.ID_COLUMN + "=?",
+				new String[] { Integer.toString(imageId) });
+		if (rowsAffected < 1) {
+			Log.e(TAG, "Unable to locate a row with image_id: " + imageId);
+		}
+	}
 }

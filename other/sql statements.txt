@@ -1,4 +1,0 @@
-CREATE TABLE IMAGE_PATH (
-    "_id" INTEGER primary key autoincrement ,
-    "IMAGE_NUMBER" INTEGER NOT NULL UNIQUE,
-    "PATH" TEXT NOT NULL)
