@@ -779,14 +779,17 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			if (!imageCropTableExists) {
 				db.execSQL(MultiBackgroundConstants.CREATE_IMAGE_CROP_TABLE_QUERY);
 				Log.i(TAG, "Created Image Crop table");
+				isDatabaseUpdated = true;
 			}
 			if (!cropButtonTableExists) {
 				db.execSQL(MultiBackgroundConstants.CREATE_CROP_BUTTON_DIMENSIONS_TABLE_QUERY);
 				Log.i(TAG, "Created Crop button dimensions table");
+				isDatabaseUpdated = true;
 			}
 			if (!localImagePathTableExists) {
 				db.execSQL(MultiBackgroundConstants.CREATE_LOCAL_IMAGE_PATH_TABLE_QUERY);
 				Log.i(TAG, "Created Local image path table");
+				isDatabaseUpdated = true;
 			}
 			if (!isImagePathRowUpdatedColumnExists) {
 				db.execSQL(MultiBackgroundConstants.ADD_IS_IMAGE_PATH_ROW_UPDATE_QUERY);
@@ -796,6 +799,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 								+ " column in "
 								+ MultiBackgroundConstants.IMAGE_PATH_TABLE
 								+ " table");
+				isDatabaseUpdated = true;
 			}
 		} catch (Exception e) {
 			Log.e(TAG, "Unable to create new tables");
