@@ -291,9 +291,18 @@ public class MultiBackgroundUtilities {
 		return localFileName;
 	}
 
-	public static String generateFileNameFromImageId(int imageId) {
+	/**
+	 *
+	 * @param imageId
+	 * @param format
+	 *            the format with which the file is stored starting with a ".".
+	 *            For example: ".png" or ".jpeg" etc.
+	 * @return
+	 */
+	public static String
+			generateFileNameFromImageId(int imageId, String format) {
 		String localFileName = new StringBuilder("").append(imageId).append(
-				MultiBackgroundConstants.LOCAL_IMAGE_FORMAT).toString();
+				format).toString();
 		return localFileName;
 	}
 
@@ -393,7 +402,8 @@ public class MultiBackgroundUtilities {
 			public void run() {
 
 				String localImageFileName = MultiBackgroundUtilities
-						.generateFileNameFromImageId(imageId);
+						.generateFileNameFromImageId(imageId,
+								MultiBackgroundConstants.LOCAL_IMAGE_FORMAT);
 				OutputStream outStream = null;
 				String localImagePath = null;
 				int isImageOnExternalStorage = 0;
@@ -431,7 +441,7 @@ public class MultiBackgroundUtilities {
 						Log.d(TAG,
 								"Using internal storage to store local image");
 					}
-					copiedBitmap.compress(Bitmap.CompressFormat.PNG, 90,
+					copiedBitmap.compress(Bitmap.CompressFormat.JPEG, 90,
 							outStream);
 					Log.d(TAG, "Copied the image file locally.");
 					databaseHelper.addLocalmagePathToDatabase(mbi.get_id(),
@@ -469,8 +479,30 @@ public class MultiBackgroundUtilities {
 						}
 					}
 				}
+				try {
+					String oldFormatFileName = MultiBackgroundUtilities
+							.generateFileNameFromImageId(
+									imageId,
+									MultiBackgroundConstants.OLD_LOCAL_IMAGE_FORMAT);
+					File externalFile = new File(context.getExternalFilesDir(null),
+							oldFormatFileName);
+					if (externalFile != null && externalFile.exists()) {
+						externalFile.delete();
+						Log.d(TAG,
+								"Succesfully old format file from External storage.");
+					}
+					String internalStorageFilePath = MultiBackgroundUtilities
+							.generateLocalFilePath(context, oldFormatFileName);
+					File internalFile = new File(internalStorageFilePath);
+					if (internalFile != null && internalFile.exists()) {
+						internalFile.delete();
+						Log.d(TAG,
+								"Succesfully old format file from Internal storage.");
+					}
+				} catch (Exception e) {
+					Log.e(TAG, "Failed to delete old fromat file from storage.");
+				}
 			}
-
 		}).start();
 	}
 }

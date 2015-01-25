@@ -3,6 +3,7 @@ package com.apps.interestingapps.multibackground.common;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.os.AsyncTask;
+import android.util.Log;
 
 public class SaveLocalImageAsyncTask extends AsyncTask<Void, Void, Void> {
 
@@ -29,8 +30,15 @@ public class SaveLocalImageAsyncTask extends AsyncTask<Void, Void, Void> {
 
 	@Override
 	protected Void doInBackground(Void... params) {
-		Bitmap bitmap = MultiBackgroundUtilities.createLocalImageAndSave(
-				context, databaseHelper, screenX, screenY, cbd, mbi);
+		Bitmap bitmap = null;
+		try {
+			bitmap = MultiBackgroundUtilities.createLocalImageAndSave(context,
+					databaseHelper, screenX, screenY, cbd, mbi);
+		} catch (Exception e) {
+			Log.e(TAG,
+					"Issue occurred while save local image in background. Another attempt will be made later.");
+			Log.e(TAG, "The issue is: " + e);
+		}
 		if (bitmap != null) {
 			bitmap.recycle();
 		}

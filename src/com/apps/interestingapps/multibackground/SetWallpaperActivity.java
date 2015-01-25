@@ -96,6 +96,7 @@ public class SetWallpaperActivity extends Activity {
 	private boolean onCreateCalled = false;
 	private int cbdLength = 0, cbdHeight = 0;
 	private String extStorageDirectory = null;
+	private boolean resumedFromActivity = false;
 
 	@SuppressWarnings("deprecation")
 	@Override
@@ -152,22 +153,24 @@ public class SetWallpaperActivity extends Activity {
 		super.onResume();
 		setWallpaperButton
 				.setBackgroundResource(R.drawable.set_wallpaper_button);
-		imageViewList = new ArrayList<ImageView>();
-		mbiList = new ArrayList<MultiBackgroundImage>();
-		getAllImages();
 		parentCropRelativeLayout.getLayoutParams().width = halfScreenWidth;
 		parentCropRelativeLayout.getLayoutParams().height = halfScreenHeight;
-
-		if (mbiList.size() > 0) {
-			if (beforePauseClickedImageIndex >= mbiList.size()) {
-				beforePauseClickedImageIndex = 0;
+		if (!resumedFromActivity) {
+			resumedFromActivity = false;
+			imageViewList = new ArrayList<ImageView>();
+			mbiList = new ArrayList<MultiBackgroundImage>();
+			getAllImages();
+			if (mbiList.size() > 0) {
+				if (beforePauseClickedImageIndex >= mbiList.size()) {
+					beforePauseClickedImageIndex = 0;
+				}
+				MbiOnClickListener onClick = new MbiOnClickListener(this,
+						mbiList.get(beforePauseClickedImageIndex),
+						previousSelectedMbi, currentImageView, mbiList.get(
+								beforePauseClickedImageIndex).getPath(),
+						halfScreenWidth, halfScreenHeight, radioGroup);
+				onClick.onClick(imageViewList.get(beforePauseClickedImageIndex));
 			}
-			MbiOnClickListener onClick = new MbiOnClickListener(this, mbiList
-					.get(beforePauseClickedImageIndex), previousSelectedMbi,
-					currentImageView, mbiList.get(beforePauseClickedImageIndex)
-							.getPath(), halfScreenWidth, halfScreenHeight,
-					radioGroup);
-			onClick.onClick(imageViewList.get(beforePauseClickedImageIndex));
 		}
 		/*
 		 * Android 4.0 device id: 64FFE02AABF389054771188E3CF39B63
@@ -396,8 +399,10 @@ public class SetWallpaperActivity extends Activity {
 	 */
 	@Override
 	public void onActivityResult(int requestCode, int resultCode, Intent data) {
+		Log.d(TAG, "On Activity Result.");
 		setWallpaperButton
 				.setBackgroundResource(R.drawable.set_wallpaper_button);
+		resumedFromActivity = true;
 		if (resultCode == Activity.RESULT_OK) {
 			if (requestCode == MultiBackgroundConstants.SELECT_PICTURE_ACTIVITY) {
 				Uri selectedImageUri = data.getData();
@@ -811,6 +816,7 @@ public class SetWallpaperActivity extends Activity {
 			if (currentSelectedMbi != null
 					&& currentSelectedMbi.equals(mbiToBeDeleted)) {
 				Log.d(TAG, "MBI to be deleted is currently selected");
+				currentSelectedMbi.setImagePathRowUpdated(0);
 				if (mbiList.size() > 0) {
 					if (indexOfImage == 0) {
 						MbiOnClickListener onClick = new MbiOnClickListener(
@@ -873,7 +879,8 @@ public class SetWallpaperActivity extends Activity {
 	}
 
 	public void setCurrentSelectedMbi(MultiBackgroundImage mbi) {
-		if (currentSelectedMbi != null) {
+		if (currentSelectedMbi != null && mbi != null
+				&& !currentSelectedMbi.equals(mbi)) {
 			// MultiBackgroundImage cloneOfPreviousMbi = currentSelectedMbi
 			// .clone();
 			if (currentSelectedMbi.isImagePathRowUpdated() > 0) {

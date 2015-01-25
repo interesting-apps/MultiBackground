@@ -39,7 +39,8 @@ public class MultiBackgroundConstants {
 	public static final String APP_PACKAGE = "com.apps.interestingapps.multibackground";
 	public static final String PREFERENCES_FILE_NAME = APP_PACKAGE
 			+ ".preferences";
-	public static final String LOCAL_IMAGE_FORMAT = ".png";
+	public static final String LOCAL_IMAGE_FORMAT = ".jpeg";
+	public static final String OLD_LOCAL_IMAGE_FORMAT = ".png";
 
 	public static final String CREATE_IMAGE_CROP_TABLE_QUERY = "CREATE TABLE image_crop("
 			+ " _id INTEGER primary key autoincrement ,"

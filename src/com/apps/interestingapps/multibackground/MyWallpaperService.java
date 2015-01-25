@@ -90,7 +90,7 @@ public class MyWallpaperService extends WallpaperService {
 			}
 			changeBackground = true;
 			usedIntegers = new ArrayList<Integer>();
-			Log.i(TAG, "On create called");
+			Log.i(TAG, "MyWallpaperService On create called");
 			handler.post(drawRunner);
 		}
 
@@ -394,35 +394,51 @@ public class MyWallpaperService extends WallpaperService {
 				if (!isBitmapLoaded) {
 					MultiBackgroundLocalImage mbli = databaseHelper
 							.getLocalImagePath(imageId);
-					try {
-						scaledBitmap = MultiBackgroundUtilities
-								.scaleDownImageAndDecode(mbli
-										.getLocalImagePath(), screenX, screenY,
-										imageSize);
-					} catch (Exception e) {
-
-						if (mbli.isImageOnExternalStorage() > 0) {
-							Log.d(TAG,
-									"Unable to read local image from external storage due to: "
-											+ e);
-							/*
-							 * Failed to load image from external storage. Save
-							 * it to internal storage and load the bitmap
-							 */
+					if (mbli == null) {
+						try {
 							mbi.setImagePathRowUpdated(1);
-							try {
-								scaledBitmap = MultiBackgroundUtilities
-										.createLocalImageAndSave(
-												getApplicationContext(),
-												databaseHelper, screenX,
-												screenY, cbd, mbi);
-							} catch (Exception e1) {
+							scaledBitmap = MultiBackgroundUtilities
+									.createLocalImageAndSave(
+											getApplicationContext(),
+											databaseHelper, screenX, screenY,
+											cbd, mbi);
+						} catch (Exception e) {
+							Log.d(TAG,
+									"Unable to create local for the bitmap due to: "
+											+ e);
+						}
+					} else {
+						try {
+							scaledBitmap = MultiBackgroundUtilities
+									.scaleDownImageAndDecode(mbli
+											.getLocalImagePath(), screenX,
+											screenY, imageSize);
+						} catch (Exception e) {
+
+							if (mbli.isImageOnExternalStorage() > 0) {
+								Log.d(TAG,
+										"Unable to read local image from external storage due to: "
+												+ e);
+								/*
+								 * Failed to load image from external storage.
+								 * Save it to internal storage and load the
+								 * bitmap
+								 */
+								mbi.setImagePathRowUpdated(1);
+								try {
+									scaledBitmap = MultiBackgroundUtilities
+											.createLocalImageAndSave(
+													getApplicationContext(),
+													databaseHelper, screenX,
+													screenY, cbd, mbi);
+								} catch (Exception e1) {
+									Log.d(TAG, "Unable to load image from "
+											+ "internal storage due to: " + e1);
+								}
+							} else {
 								Log.d(TAG, "Unable to load image from "
-										+ "internal storage due to: " + e1);
+										+ "internal storage due to: " + e);
 							}
-						} else {
-							Log.d(TAG, "Unable to load image from "
-									+ "internal storage due to: " + e);
 						}
 					}
 				}
