@@ -62,6 +62,15 @@ public class MultiBackgroundUtilities {
 			int resourceId,
 			int maxWidth,
 			int maxHeight) {
+		return scaleDownImageAndDecode(res, ImageSize.BEST_FIT, resourceId,
+				maxWidth, maxHeight);
+	}
+
+	public static Bitmap scaleDownImageAndDecode(Resources res,
+			ImageSize imageSize,
+			int resourceId,
+			int maxWidth,
+			int maxHeight) {
 		Bitmap compressedBitmap = null;
 
 		// First decode with inJustDecodeBounds=true to check dimensions
@@ -91,7 +100,7 @@ public class MultiBackgroundUtilities {
 		} while (compressedBitmap == null && retry < 5);
 
 		int[] scaledWidthHeight = getScaledWidthHeight(compressedBitmap,
-				ImageSize.BEST_FIT, aspectRatio, maxWidth, maxHeight);
+				imageSize, aspectRatio, maxWidth, maxHeight);
 		Bitmap resizedBitmap = Bitmap.createScaledBitmap(compressedBitmap,
 				scaledWidthHeight[0], scaledWidthHeight[1], true);
 		if (resizedBitmap != compressedBitmap) {
@@ -99,6 +108,7 @@ public class MultiBackgroundUtilities {
 		}
 		return resizedBitmap;
 	}
+
 
 	public static int calculateInSampleSize(BitmapFactory.Options options,
 			int reqWidth,

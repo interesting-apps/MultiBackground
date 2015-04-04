@@ -31,8 +31,27 @@ CREATE TABLE image_crop(
 CREATE TABLE crop_button_dimensions(crop_button_length INTEGER, crop_button_height INTEGER)
 
 
-From version 9 to ....:
+From version 9:
 
 create table local_image_path(image_id Integer NOT_NULL UNIQUE, local_path text NOT_NULL, image_on_external_storage Integer, FOREIGN KEY (image_id) REFERENCES image_path(_id) ON DELETE CASCADE);
 
 alter table image_path add column is_image_path_row_updated integer default 1;
+
+
+From version 10 to ....:
+create table animation_details(animation_id INTEGER PRIMARY KEY,
+	animation_name TEXT NOT NULL UNIQUE,
+	animation_group_id INTEGER NOT NULL,
+	animation_display_name TEXT NOT NULL UNIQUE,
+	animation_description TEXT, FOREIGN KEY (animation_group_id) 
+	REFERENCES animation_group_details(animation_group_id));
+
+create table animation_group_details(animation_group_id INTEGER primary key,
+	animation_group_name TEXT NOT NULL UNIQUE,
+	animation_group_display_name  TEXT NOT NULL UNIQUE,
+	animation_group_description TEXT);
+	
+create table selected_animation_details(_id INTEGER PRIMARY KEY, animation_id INTEGER NOT NULL UNIQUE,
+	animation_name TEXT NOT NULL UNIQUE,
+	FOREIGN KEY(animation_id) REFERENCES animation_details(animation_id),
+	FOREIGN KEY(animation_name) REFERENCES animation_details(animation_name));

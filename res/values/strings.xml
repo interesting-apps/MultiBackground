@@ -23,5 +23,11 @@
     <string name="preference_title">Set Image order</string>
     <string name="preference_key">image_order</string>
     <string name="crop_rectangle_description">Crop Rectangle</string>
+    <string name="animate_transition_text_string">Animate Transition</string>
+    <string name="animate_transition_activity_label">AnimateTransitionActvity</string>
+    <string name="animate_transition_activity_filter_action">com.apps.interestingapps.multibackground.ANIMATE_TRANSITION</string>
+    <string name="animate_transition_activity_filter_category">android.intent.category.DEFAULT</string>
+    <string name="animation_name">NONE</string>
+    <string name="animation_demo_image_view_description">Animation Demo Image</string>
 
 </resources>

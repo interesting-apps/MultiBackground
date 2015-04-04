@@ -107,6 +107,20 @@
             android:visibility="invisible" />
     </RelativeLayout>
 
+    <RelativeLayout
+        android:id="@+id/animateTransitionTextViewLayout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true" >
+
+        <TextView
+            android:id="@+id/animateTransitionTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/animate_transition_text_string"
+            android:textSize="20sp" />
+    </RelativeLayout>
+
     <LinearLayout
         android:id="@+id/adsScrollViewRadioGroup"
         android:layout_width="fill_parent"
@@ -145,8 +159,7 @@
                 android:layout_height="wrap_content"
                 android:onClick="onRadioButtonClicked"
                 android:text="@string/crop_image"
-                android:textColor="@color/White"
-                 />
+                android:textColor="@color/White" />
         </RadioGroup>
 
         <HorizontalScrollView

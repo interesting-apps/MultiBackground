@@ -30,8 +30,23 @@ public class MultiBackgroundConstants {
 	public static final String LOCAL_IMAGE_PATH_TABLE = "local_image_path";
 	public static final String LOCAL_PATH_COLUMN = "local_path";
 
+	public static final String ANIMATION_DETAILS_TABLE = "animation_details";
+	public static final String ANIMATION_ID_COLUMN = "animation_id";
+	public static final String ANIMATION_NAME_COLUMN = "animation_name";
+	public static final String ANIMATION_DISPLAY_NAME_COLUMN = "animation_display_name";
+	public static final String ANIMATION_DESCRIPTION_COLUMN = "animation_description";
+
+	public static final String ANIMATION_GROUP_DETAILS_TABLE = "animation_group_details";
+	public static final String ANIMATION_GROUP_ID_COLUMN = "animation_group_id";
+	public static final String ANIMATION_GROUP_NAME_COLUMN = "animation_group_name";
+	public static final String ANIMATION_GROUP_DISPLAY_NAME_COLUMN = "animation_group_display_name";
+	public static final String ANIMATION_GROUP_DESCRIPTION_COLUMN = "animation_group_description";
+
+	public static final String SELECTED_ANIMATION_DETAILS_TABLE = "selected_animation_details";
+
 	public static final String DB_PATH = "/data/data/com.apps.interestingapps.multibackground/databases/";
 	public static final int SELECT_PICTURE_ACTIVITY = 1;
+	public static final int ANIMATE_TRANSITION_ACTIVITY = 2;
 	public static final int MAX_IMAGES = 15;
 
 	public static final int TEMP_UINQUE_IMAGE_NUMBER = MultiBackgroundConstants.MAX_IMAGES + 2;
@@ -60,4 +75,21 @@ public class MultiBackgroundConstants {
 	public static final String ADD_IS_IMAGE_PATH_ROW_UPDATE_QUERY = "alter table image_path add column is_image_path_row_updated integer default 1";
 
 	public static final String ENABLE_FOREIGN_KEY_QUERY = "PRAGMA foreign_keys=ON;";
+
+	public static final String CREATE_ANIMATION_DETAILS_TABLE_QUERY = "create table animation_details(animation_id INTEGER PRIMARY KEY,"
+			+ " animation_name TEXT NOT NULL UNIQUE,"
+			+ " animation_group_id INTEGER NOT NULL,"
+			+ " animation_display_name TEXT NOT NULL UNIQUE,"
+			+ " animation_description TEXT, FOREIGN KEY (animation_group_id)"
+			+ " REFERENCES animation_group_details(animation_group_id))";
+
+	public static final String CREATE_ANIMATION_GROUP_DETAILS_TABLE_QUERY = "create table animation_group_details(animation_group_id INTEGER primary key,"
+			+ " animation_group_name TEXT NOT NULL UNIQUE,"
+			+ " animation_group_display_name  TEXT NOT NULL UNIQUE,"
+			+ " animation_group_description TEXT)";
+	public static final String CREATE_SELECTED_ANIMATION_DETAILS_TABLE_QUERY = "	create table selected_animation_details(_id INTEGER PRIMARY KEY,"
+			+ " animation_id INTEGER NOT NULL UNIQUE,"
+			+ " animation_name TEXT NOT NULL UNIQUE,"
+			+ " FOREIGN KEY(animation_id) REFERENCES animation_details(animation_id),"
+			+ " FOREIGN KEY(animation_name) REFERENCES animation_details(animation_name))";
 }

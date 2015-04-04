@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +29,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 	private Context context;
 	private SQLiteDatabase database;
 	private static final String TAG = "DatabaseHelper";
-	private volatile boolean isDatabaseUpdated = false;
+	private volatile boolean isDatabaseUpdated = false,
+			isAnimationUpdated = false;;
 	private static int openConnections = 0;
 
 	private String[] imagePathAllColumns = {
@@ -56,6 +58,24 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			MultiBackgroundConstants.IMAGE_ID_COLUMN,
 			MultiBackgroundConstants.LOCAL_PATH_COLUMN,
 			MultiBackgroundConstants.IMAGE_ON_EXTERNAL_STORAGE_COLUMN };
+
+	private String[] animationDetailsAllColumns = {
+			MultiBackgroundConstants.ANIMATION_ID_COLUMN,
+			MultiBackgroundConstants.ANIMATION_NAME_COLUMN,
+			MultiBackgroundConstants.ANIMATION_GROUP_ID_COLUMN,
+			MultiBackgroundConstants.ANIMATION_DISPLAY_NAME_COLUMN,
+			MultiBackgroundConstants.ANIMATION_DESCRIPTION_COLUMN };
+
+	private String[] animationGroupDetailsAllColumns = {
+			MultiBackgroundConstants.ANIMATION_GROUP_ID_COLUMN,
+			MultiBackgroundConstants.ANIMATION_GROUP_NAME_COLUMN,
+			MultiBackgroundConstants.ANIMATION_GROUP_DISPLAY_NAME_COLUMN,
+			MultiBackgroundConstants.ANIMATION_GROUP_DESCRIPTION_COLUMN };
+
+	private String[] selectedAnimationDetailsAllColumns = {
+			MultiBackgroundConstants.ID_COLUMN,
+			MultiBackgroundConstants.ANIMATION_ID_COLUMN,
+			MultiBackgroundConstants.ANIMATION_NAME_COLUMN };
 
 	private DatabaseHelper(Context context) {
 		super(context, MultiBackgroundConstants.DATABASE_NAME, null,
@@ -1023,4 +1043,103 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			Log.e(TAG, "Unable to locate a row with image_id: " + imageId);
 		}
 	}
+
+	public synchronized List<AnimationDetails>
+			getAllAnimationDetails(Map<Integer, AnimationGroupDetails> animationGroupIdToObjectMap) {
+		List<AnimationDetails> animationDetails = new ArrayList<AnimationDetails>();
+		Cursor allValuesCursor = database.query(
+				MultiBackgroundConstants.ANIMATION_DETAILS_TABLE,
+				animationDetailsAllColumns, null, null, null, null, null);
+
+		while (allValuesCursor.moveToNext()) {
+			AnimationDetails newAnimationDetails = AnimationDetails
+					.newInstance(allValuesCursor, animationGroupIdToObjectMap);
+			animationDetails.add(newAnimationDetails);
+		}
+		Log.i(TAG, "total rows: " + allValuesCursor.getCount());
+		allValuesCursor.close();
+
+		return animationDetails;
+	}
+
+	/**
+	 * @return Gets all the animation group details and returns a Map of
+	 *         animationGroupId and its corresponding AnimationGroupDetails
+	 *         object.
+	 */
+	public synchronized Map<Integer, AnimationGroupDetails>
+			getAllAnimationGroupDetails() {
+		Map<Integer, AnimationGroupDetails> animationGroupDetails = new HashMap<Integer, AnimationGroupDetails>();
+		Cursor allValuesCursor = database.query(
+				MultiBackgroundConstants.ANIMATION_GROUP_DETAILS_TABLE,
+				animationGroupDetailsAllColumns, null, null, null, null, null);
+
+		while (allValuesCursor.moveToNext()) {
+			AnimationGroupDetails newAnimationGroupDetails = AnimationGroupDetails
+					.newInstance(allValuesCursor);
+			animationGroupDetails.put(newAnimationGroupDetails
+					.getAnimationGroupId(), newAnimationGroupDetails);
+		}
+		Log.i(TAG, "total rows: " + allValuesCursor.getCount());
+		allValuesCursor.close();
+
+		return animationGroupDetails;
+	}
+
+	public synchronized SelectedAnimationDetails getSelectedAnimationDetails() {
+		Cursor allValuesCursor = database.query(
+				MultiBackgroundConstants.SELECTED_ANIMATION_DETAILS_TABLE,
+				selectedAnimationDetailsAllColumns, null, null, null, null,
+				null);
+
+		try {
+			if (allValuesCursor.moveToNext()) {
+				SelectedAnimationDetails newSelectedAnimationDetails = SelectedAnimationDetails
+						.newInstance(allValuesCursor);
+				return newSelectedAnimationDetails;
+			}
+		} finally {
+			allValuesCursor.close();
+		}
+		return null;
+	}
+
+	public synchronized boolean isAnimationUpdated() {
+		return this.isAnimationUpdated;
+	}
+
+	public synchronized void setAnimationUpdated(boolean isAnimationUpdated) {
+		this.isAnimationUpdated = isAnimationUpdated;
+	}
+
+	/**
+	 * This method updates the value in row 1 of selected_animation_details
+	 * table.
+	 *
+	 * @param animationDetails
+	 * @return
+	 */
+	public synchronized SelectedAnimationDetails
+			updateSelectedAnimationDetails(AnimationDetails animationDetails) {
+		ContentValues values = new ContentValues();
+		values.put(MultiBackgroundConstants.ANIMATION_ID_COLUMN,
+				animationDetails.getAnimationId());
+		values.put(MultiBackgroundConstants.ANIMATION_NAME_COLUMN,
+				animationDetails.getAnimationType().getAnimationTypeName());
+		int rowsAffected = database.update(
+				MultiBackgroundConstants.SELECTED_ANIMATION_DETAILS_TABLE,
+				values, MultiBackgroundConstants.ID_COLUMN + "=?",
+				new String[] { "" + 1 });
+		if (rowsAffected < 1) {
+			Log.e(TAG, "Unable to locate a row with _id: " + 1);
+			return null;
+		} else {
+			setAnimationUpdated(true);
+			SelectedAnimationDetails newSelectedAnimationDetails = new SelectedAnimationDetails(
+					animationDetails.getAnimationId(), animationDetails
+							.getAnimationType().getAnimationTypeName());
+			return newSelectedAnimationDetails;
+		}
+	}
+
 }

@@ -20,12 +20,15 @@ import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.WindowManager;
 
+import com.apps.interestingapps.multibackground.animation.AnimationType;
+import com.apps.interestingapps.multibackground.animation.AnimationUtilities;
 import com.apps.interestingapps.multibackground.common.CropButtonDimensions;
 import com.apps.interestingapps.multibackground.common.DatabaseHelper;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundImage;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundImage.ImageSize;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundLocalImage;
 import com.apps.interestingapps.multibackground.common.MultiBackgroundUtilities;
+import com.apps.interestingapps.multibackground.common.SelectedAnimationDetails;
 
 public class MyWallpaperService extends WallpaperService {
 
@@ -41,7 +44,7 @@ public class MyWallpaperService extends WallpaperService {
 		private float downX, upX;
 		private final double THRESHOLD_FOR_SCREEN_CHANGE = 0.48;
 		private final double SCREEN_COVERAGE_FACTOR = 0.45;
-		private int screenX, screenY;
+		private int screenX, screenY, halfScreenX, halfScreenY;
 		private boolean changeBackground = false;
 		private double screenCoverageRequired;
 		private DatabaseHelper databaseHelper;
@@ -54,6 +57,7 @@ public class MyWallpaperService extends WallpaperService {
 		private CropButtonDimensions cbd;
 		private int cbdLength = 0, cbdHeight = 0;
 		private Map<Integer, Bitmap> leftMiddleAndRightBitmaps = new HashMap<Integer, Bitmap>();
+		private String selectedAnimation = null;
 
 		private int imageOrder = 1;
 
@@ -76,6 +80,8 @@ public class MyWallpaperService extends WallpaperService {
 
 			screenX = display.getWidth();
 			screenY = display.getHeight();
+			halfScreenX = screenX / 2;
+			halfScreenY = screenY / 2;
 			screenCoverageRequired = screenX * SCREEN_COVERAGE_FACTOR;
 		}
 
@@ -185,10 +191,11 @@ public class MyWallpaperService extends WallpaperService {
 			Canvas canvas = null;
 			if (changeBackground) {
 				try {
-					canvas = holder.lockCanvas();
-					if (canvas != null) {
-						changeBackground(canvas);
-					}
+					// canvas = holder.lockCanvas();
+					// if (canvas != null) {
+					// changeBackground(canvas);
+					// }
+					changeBackground(holder, canvas);
 				} finally {
 					if (canvas != null)
 						holder.unlockCanvasAndPost(canvas);
@@ -201,27 +208,72 @@ public class MyWallpaperService extends WallpaperService {
 		}
 
 		// Surface view requires that all elements are drawn completely
-		private void changeBackground(Canvas canvas) {
+		private void changeBackground(SurfaceHolder holder, Canvas canvas) {
 			if (changeBackground) {
 				Bitmap scaledBitmap = null;
 
-				// /*
-				// * TODO: Try to optimize this, so that if recycling is not
-				// * required, we can skip this
-				// */
-				// if (currentBitmap != null) {
-				// currentBitmap.recycle();
-				// }
 				scaledBitmap = updateBitmapMap(actualDistanceX < 0);
 				changeBackground = false;
-				canvas.drawColor(0, android.graphics.PorterDuff.Mode.CLEAR);
+
+				// canvas = holder.lockCanvas();
+				// canvas.drawColor(0, android.graphics.PorterDuff.Mode.CLEAR);
+				// holder.unlockCanvasAndPost(canvas);
+
 				if (scaledBitmap != null) {
-					int wallpaperX = screenX / 2 - scaledBitmap.getWidth() / 2;
-					int wallpaperY = screenY / 2 - scaledBitmap.getHeight() / 2;
-					canvas.drawBitmap(scaledBitmap, wallpaperX > 0 ? wallpaperX
-							: 0, wallpaperY > 0 ? wallpaperY : 0, null);
-					currentBitmap = scaledBitmap;
+					Bitmap oldBitmap = null;
+					if (actualDistanceX < 0) {
+						// Moving to screen on right.
+						if (leftMiddleAndRightBitmaps.get(1) != null) {
+							oldBitmap = leftMiddleAndRightBitmaps.get(1);
+						} else {
+							Log.i(TAG,
+									"No bitmap found on right. Unable to animate transition.");
+						}
+					} else {
+						// Moving to screen on left
+						if (leftMiddleAndRightBitmaps.get(3) != null) {
+							oldBitmap = leftMiddleAndRightBitmaps.get(3);
+						} else {
+							Log.i(TAG,
+									"No bitmap found on left. Unable to animate transition.");
+						}
+					}
+					boolean drawWithoutAnimation = false;
+					if (oldBitmap != null && scaledBitmap != null) {
+						try {
+							if (!animateTransition(holder, oldBitmap,
+									scaledBitmap, screenX, screenY)) {
+								drawWithoutAnimation = true;
+							}
+						} catch (Exception e) {
+							Log.e(TAG,
+									"Exception occurred while animating bitmaps: "
+											+ e);
+							drawWithoutAnimation = true;
+						}
+					} else {
+						drawWithoutAnimation = true;
+					}
+
+					if (drawWithoutAnimation) {
+						AnimationUtilities.drawBitmapWithoutAnimation(
+								scaledBitmap, getSurfaceHolder(), screenX,
+								screenY);
+						// int wallpaperX = halfScreenX -
+						// scaledBitmap.getWidth()
+						// / 2;
+						// int wallpaperY = halfScreenY -
+						// scaledBitmap.getHeight()
+						// / 2;
+						// canvas = holder.lockCanvas();
+						// canvas.drawBitmap(scaledBitmap,
+						// wallpaperX > 0 ? wallpaperX : 0,
+						// wallpaperY > 0 ? wallpaperY : 0, null);
+						// holder.unlockCanvasAndPost(canvas);
+					}
 				}
+				currentBitmap = scaledBitmap;
+
 			}
 		}
 
@@ -292,7 +344,7 @@ public class MyWallpaperService extends WallpaperService {
 
 					if (bitmapToRecycle != null) {
 						bitmapToRecycle.recycle();
-						leftMiddleAndRightBitmaps.put(1, null);
+						leftMiddleAndRightBitmaps.put(3, null);
 					}
 					final int rightImageNumber = getRightImageNumber(currentImageNumber);
 					new Thread(new Runnable() {
@@ -309,7 +361,7 @@ public class MyWallpaperService extends WallpaperService {
 							.get(1));
 					if (bitmapToRecycle != null) {
 						bitmapToRecycle.recycle();
-						leftMiddleAndRightBitmaps.put(3, null);
+						leftMiddleAndRightBitmaps.put(1, null);
 					}
 					final int leftImageNumber = getLeftImageNumber(currentImageNumber);
 					new Thread(new Runnable() {
@@ -461,5 +513,36 @@ public class MyWallpaperService extends WallpaperService {
 			}
 			return scaledBitmap;
 		}
+
+		private boolean animateTransition(SurfaceHolder holder,
+				Bitmap oldBitmap,
+				Bitmap nextBitmap,
+				int screenX,
+				int screenY) {
+			synchronized (databaseHelper) {
+				if (selectedAnimation == null
+						|| databaseHelper.isAnimationUpdated()) {
+					SelectedAnimationDetails sad = null;
+					try {
+						sad = databaseHelper.getSelectedAnimationDetails();
+					} catch (Exception e) {
+						Log.d(TAG,
+								"Error occurred while reading selected animation details: "
+										+ e);
+					}
+					if (sad == null) {
+						selectedAnimation = AnimationType.NONE
+								.getAnimationTypeName();
+					} else {
+						selectedAnimation = sad.getAnimationName();
+					}
+					databaseHelper.setAnimationUpdated(false);
+				}
+			}
+
+			return AnimationUtilities.animateTransition(holder,
+					selectedAnimation, oldBitmap, nextBitmap, screenX, screenY);
+		}
 	}
+
 }

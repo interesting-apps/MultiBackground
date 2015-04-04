@@ -11,7 +11,6 @@ import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.ActivityInfo;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
@@ -38,6 +37,7 @@ import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.RelativeLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.apps.interestingapps.multibackground.common.CropButtonDimensions;
@@ -49,6 +49,7 @@ import com.apps.interestingapps.multibackground.common.MultiBackgroundImage.Imag
 import com.apps.interestingapps.multibackground.common.MultiBackgroundUtilities;
 import com.apps.interestingapps.multibackground.common.SaveLocalImageAsyncTask;
 import com.apps.interestingapps.multibackground.listeners.AddImageClickListener;
+import com.apps.interestingapps.multibackground.listeners.AnimateTransitionOnClickListener;
 import com.apps.interestingapps.multibackground.listeners.CropButtonTouchListener;
 import com.apps.interestingapps.multibackground.listeners.CropButtonTouchListener.CropButtonPosition;
 import com.apps.interestingapps.multibackground.listeners.CropRectangleTouchListener;
@@ -56,7 +57,6 @@ import com.apps.interestingapps.multibackground.listeners.DragToDeleteListener;
 import com.apps.interestingapps.multibackground.listeners.MbiDragListener;
 import com.apps.interestingapps.multibackground.listeners.MbiLongClickListener;
 import com.apps.interestingapps.multibackground.listeners.MbiOnClickListener;
-import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
 
 /**
@@ -97,6 +97,7 @@ public class SetWallpaperActivity extends Activity {
 	private int cbdLength = 0, cbdHeight = 0;
 	private String extStorageDirectory = null;
 	private boolean resumedFromActivity = false;
+	private TextView animateTransitionTextView;
 
 	@SuppressWarnings("deprecation")
 	@Override
@@ -104,7 +105,7 @@ public class SetWallpaperActivity extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
 
-		this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+		// this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 		Display display = getWindowManager().getDefaultDisplay();
 		screenWidth = display.getWidth();
 		screenHeight = display.getHeight();
@@ -189,9 +190,9 @@ public class SetWallpaperActivity extends Activity {
 		// AdRequest.DEVICE_ID_EMULATOR).addTestDevice(
 		// "64FFE02AABF389054771188E3CF39B63").build();
 
-		AdRequest adRequest = new AdRequest.Builder().build();
-
-		adview.loadAd(adRequest);
+		// AdRequest adRequest = new AdRequest.Builder().build();
+		//
+		// adview.loadAd(adRequest);
 		if (onCreateCalled) {
 			onCreateCalled = false;
 			showRateDialog();
@@ -244,6 +245,10 @@ public class SetWallpaperActivity extends Activity {
 		plusImageView.setOnClickListener(new AddImageClickListener(this));
 		hsv = (HorizontalScrollView) findViewById(R.id.horizontalScrollView);
 		deleteImageView = (ImageView) findViewById(R.id.deleteImageView);
+		animateTransitionTextView = (TextView) findViewById(R.id.animateTransitionTextView);
+		animateTransitionTextView
+				.setOnClickListener(new AnimateTransitionOnClickListener(
+						getApplicationContext(), this));
 		if (Build.VERSION.SDK_INT >= 11) {
 			// Drag and Drop is available after API level 11
 			deleteImageView.setOnDragListener(new DragToDeleteListener(this));
@@ -404,13 +409,18 @@ public class SetWallpaperActivity extends Activity {
 				.setBackgroundResource(R.drawable.set_wallpaper_button);
 		resumedFromActivity = true;
 		if (resultCode == Activity.RESULT_OK) {
-			if (requestCode == MultiBackgroundConstants.SELECT_PICTURE_ACTIVITY) {
+			switch (requestCode) {
+			case MultiBackgroundConstants.SELECT_PICTURE_ACTIVITY:
 				Uri selectedImageUri = data.getData();
 				if (selectedImageUri != null
 						&& selectedImageUri.toString().length() > 0) {
 					Log.i(TAG, "URI: " + selectedImageUri.toString());
 					addNewImage(selectedImageUri);
 				}
+				break;
+			case MultiBackgroundConstants.ANIMATE_TRANSITION_ACTIVITY:
+
+				break;
 			}
 		}
 	}
